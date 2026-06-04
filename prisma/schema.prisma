@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model News {
+  id           String   @id @default(cuid())
+  sourceId     String   @default("unknown")
+  externalId   String   @default("")
+  url          String
+  title        String
+  summary      String?
+  aiSummary    String?
+  sentiment    String?  @default("neutral")
+  language     String   @default("en")
+  publishedAt  DateTime @default(now())
+  scrapedAt    DateTime @default(now())
+  contentHash  String?  @unique
+  imageUrl     String?
+  metadata     String?  // JSON string for tags, categories, etc.
+
+  @@index([publishedAt])
+  @@index([sourceId])
+  @@index([sentiment])
+}
+
+model Price {
+  id          String   @id @default(cuid())
+  coinId      String
+  symbol      String
+  name        String
+  usdPrice    Float
+  change24h   Float?
+  volume24h   Float?
+  marketCap   Float?
+  imageUrl    String?
+  recordedAt  DateTime @default(now())
+
+  @@index([coinId])
+  @@index([recordedAt])
+}
+
+model FearGreedIndex {
+  id         String   @id @default(cuid())
+  value      Int
+  label      String
+  recordedAt DateTime @default(now())
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  email           String
+  coinIds         String   @default("[]") // JSON array
+  keywords        String   @default("[]") // JSON array
+  sources         String   @default("[]") // JSON array
+  sentimentFilter String   @default("all")
+  pushChannels    String   @default("{}") // JSON object
+  pushSchedule    String   @default("daily")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+}
