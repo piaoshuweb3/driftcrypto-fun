@@ -32,6 +32,7 @@ export const translations = {
       trending: 'Trending',
       predictionAccuracy: 'Prediction Accuracy',
       batchAnalysis: 'Batch Analysis',
+      piaoShuAnalysis: 'PiaoShu Analysis',
       signInRequired: 'Sign in required. Please sign in to access all features.',
     },
     // Hero Section
@@ -586,6 +587,43 @@ export const translations = {
       winnerBadge: 'Winner',
       metric: 'Metric',
     },
+    // PiaoShu Analysis (飘叔分析 - paid section)
+    piaoShu: {
+      title: 'PiaoShu Analysis',
+      subtitle: 'Daily crypto intelligence with exclusive insights',
+      headerPiaoShu: 'PiaoShu Analysis',
+      refresh: 'Refresh',
+      failedToLoad: 'Failed to load report',
+      noReport: 'No Daily Report Yet',
+      noReportDesc: 'Daily reports are generated automatically. Check back later for today\'s analysis.',
+      // Tabs
+      tabOverview: 'Overview',
+      tabOpportunity: 'Opportunities',
+      tabCommentary: 'PiaoShu Says',
+      tabDigest: 'Daily Digest',
+      tabRadar: 'Radar',
+      // Market snapshot
+      btcDominance: 'BTC Dominance',
+      totalMarketCap: 'Total Market Cap',
+      volume24h: '24h Volume',
+      marketChange24h: '24h Change',
+      // Coin lists
+      topGainers: 'Top Gainers (24h)',
+      topLosers: 'Top Losers (24h)',
+      // Radar sections
+      fundingRadar: 'Funding Radar',
+      upcomingICO: 'Upcoming IDO/ICO',
+      airdropRadar: 'Airdrop Radar',
+      // PiaoShu commentary
+      piaoshuSays: 'PiaoShu Says',
+      disclaimer: 'AI-generated content for reference only. Not financial advice. Always do your own research.',
+      // Paywall
+      paywallTitle: 'Premium Content',
+      paywallDesc: 'PiaoShu\'s in-depth analysis and opportunity alerts are available for Plus and Pro members. Upgrade to unlock exclusive insights.',
+      upgradeToUnlock: 'Upgrade to Unlock',
+      fullAccess: 'Full Access',
+      previewOnly: 'Preview Only',
+    },
     // Quick Links (Dashboard)
     quickLinks: {
       marketAnalysis: 'Market Analysis',
@@ -640,6 +678,7 @@ export const translations = {
       trending: '热门趋势',
       predictionAccuracy: '预测准确率',
       batchAnalysis: '批量分析',
+      piaoShuAnalysis: '飘叔分析',
       signInRequired: '需要登录。请登录以访问所有功能。',
     },
     // Hero Section
@@ -1193,6 +1232,43 @@ export const translations = {
       tableView: '表格视图',
       winnerBadge: '胜出',
       metric: '指标',
+    },
+    // 飘叔分析 (付费栏目)
+    piaoShu: {
+      title: '飘叔分析',
+      subtitle: '每日加密情报与独家洞察',
+      headerPiaoShu: '飘叔分析',
+      refresh: '刷新',
+      failedToLoad: '加载报告失败',
+      noReport: '暂无每日报告',
+      noReportDesc: '每日报告自动生成，请稍后查看今日分析。',
+      // 标签页
+      tabOverview: '总览',
+      tabOpportunity: '机会分析',
+      tabCommentary: '飘叔锐评',
+      tabDigest: '每日速报',
+      tabRadar: '雷达',
+      // 市场快照
+      btcDominance: 'BTC 占比',
+      totalMarketCap: '总市值',
+      volume24h: '24h 成交额',
+      marketChange24h: '24h 变化',
+      // 币种列表
+      topGainers: '涨幅榜 (24h)',
+      topLosers: '跌幅榜 (24h)',
+      // 雷达板块
+      fundingRadar: '融资雷达',
+      upcomingICO: '即将 IDO/ICO',
+      airdropRadar: '空投雷达',
+      // 飘叔锐评
+      piaoshuSays: '飘叔锐评',
+      disclaimer: 'AI 生成内容仅供参考，不构成投资建议。请自行研究后做出投资决策。',
+      // 付费墙
+      paywallTitle: '会员专享内容',
+      paywallDesc: '飘叔的深度分析和机会预警仅对 Plus 和 Pro 会员开放。升级以解锁独家洞察。',
+      upgradeToUnlock: '升级解锁',
+      fullAccess: '完整访问',
+      previewOnly: '仅预览',
     },
     // Quick Links (Dashboard)
     quickLinks: {

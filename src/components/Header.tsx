@@ -27,6 +27,7 @@ import {
   User,
   CreditCard,
   LogOut,
+  Crown,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,7 +69,7 @@ const mainNavItems: NavItem[] = [
   { section: 'portfolio', labelKey: 'header.portfolio', icon: Briefcase },
   { section: 'screener', labelKey: 'header.screener', icon: ScanSearch },
   { section: 'ai-chat', labelKey: 'header.aiChat', icon: MessageSquare },
-  { section: 'nft', labelKey: 'header.nft', icon: Layers },
+  { section: 'piao-shu', labelKey: 'header.piaoShuAnalysis', icon: Crown },
 ];
 
 // ---------------------------------------------------------------------------
@@ -92,6 +93,7 @@ const moreItems: MoreItem[] = [
   { section: 'trending', labelKey: 'header.trending', icon: Flame },
   { section: 'prediction-accuracy', labelKey: 'header.predictionAccuracy', icon: Target },
   { section: 'batch-analysis', labelKey: 'header.batchAnalysis', icon: Layers },
+  { section: 'nft', labelKey: 'header.nft', icon: Layers },
 ];
 
 // ---------------------------------------------------------------------------
