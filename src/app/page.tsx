@@ -1,6 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { TrendingUp, BarChart3, PieChart, Activity } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import Header from '@/components/Header';
 import HeroSection from '@/components/HeroSection';
 import TrendingStrip from '@/components/TrendingStrip';
@@ -13,12 +17,16 @@ import PortfolioSection from '@/components/PortfolioSection';
 import ScreenerSection from '@/components/ScreenerSection';
 import NFTSection from '@/components/NFTSection';
 import AIAnalysisSection from '@/components/AIAnalysisSection';
+import MarketAnalysisSection from '@/components/MarketAnalysisSection';
 import TechnicalAnalysisSection from '@/components/TechnicalAnalysisSection';
 import SentimentSection from '@/components/SentimentSection';
 import CorrelationsSection from '@/components/CorrelationsSection';
 import MacroEconomicsSection from '@/components/MacroEconomicsSection';
 import TrendingPageSection from '@/components/TrendingPageSection';
 import PredictionsSection from '@/components/PredictionsSection';
+import MicrostructureSection from '@/components/MicrostructureSection';
+import PredictionAccuracySection from '@/components/PredictionAccuracySection';
+import BatchAnalysisSection from '@/components/BatchAnalysisSection';
 import Footer from '@/components/Footer';
 import { useI18n } from '@/lib/i18n';
 
@@ -36,6 +44,7 @@ export type SectionId =
   | 'market-analysis'
   | 'macro-economics'
   | 'correlations'
+  | 'microstructure'
   | 'trending'
   | 'prediction-accuracy'
   | 'batch-analysis';
@@ -85,9 +94,10 @@ export default function Home() {
         {activeSection === 'technical-analysis' && <TechnicalAnalysisSection />}
         {activeSection === 'sentiment' && <SentimentSection />}
         {activeSection === 'enhanced-predictions' && <PredictionsSection />}
-        {activeSection === 'market-analysis' && <AIAnalysisSection onSectionChange={setActiveSection} />}
+        {activeSection === 'market-analysis' && <MarketAnalysisSection />}
         {activeSection === 'macro-economics' && <MacroEconomicsSection />}
         {activeSection === 'correlations' && <CorrelationsSection />}
+        {activeSection === 'microstructure' && <MicrostructureSection />}
         {activeSection === 'trending' && <TrendingPageSection />}
         {activeSection === 'prediction-accuracy' && <PredictionAccuracySection />}
         {activeSection === 'batch-analysis' && <BatchAnalysisSection />}
@@ -101,8 +111,8 @@ function isValidSection(id: string): id is SectionId {
   const validSections: SectionId[] = [
     'dashboard', 'market', 'portfolio', 'screener', 'ai-chat', 'nft',
     'ai-analysis', 'technical-analysis', 'sentiment', 'enhanced-predictions',
-    'market-analysis', 'macro-economics', 'correlations', 'trending',
-    'prediction-accuracy', 'batch-analysis',
+    'market-analysis', 'macro-economics', 'correlations', 'microstructure',
+    'trending', 'prediction-accuracy', 'batch-analysis',
   ];
   return validSections.includes(id as SectionId);
 }
@@ -165,9 +175,135 @@ function DashboardSection({ onSectionChange }: { onSectionChange: (s: SectionId)
 // Market Section (enhanced)
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Global market data helpers (shared with HeroSection pattern)
+// ---------------------------------------------------------------------------
+
+interface GlobalData {
+  totalMarketCap: number;
+  totalVolume: number;
+  activeCryptos: number;
+  marketCapChange24h: number;
+}
+
+interface PricesResponse {
+  coins: {
+    coinId: string;
+    symbol: string;
+    name: string;
+    usdPrice: number;
+    change24h: number | null;
+    volume24h: number | null;
+    marketCap: number | null;
+    imageUrl: string | null;
+  }[];
+  global: GlobalData;
+}
+
+async function fetchGlobalData(): Promise<GlobalData & { btcDominance: number }> {
+  const res = await fetch('/api/prices');
+  if (!res.ok) throw new Error('Failed to fetch');
+  const data: PricesResponse = await res.json();
+
+  const coins = Array.isArray(data?.coins) ? data.coins : [];
+  const btcCoin = coins.find((c) => c.coinId === 'bitcoin');
+  const btcDominance =
+    btcCoin?.marketCap && data.global.totalMarketCap > 0
+      ? (btcCoin.marketCap / data.global.totalMarketCap) * 100
+      : 0;
+
+  return { ...data.global, btcDominance };
+}
+
+function formatLargeNumber(num: number): string {
+  if (num >= 1e12) return `$${(num / 1e12).toFixed(2)}T`;
+  if (num >= 1e9) return `$${(num / 1e9).toFixed(2)}B`;
+  if (num >= 1e6) return `$${(num / 1e6).toFixed(2)}M`;
+  return `$${num.toLocaleString()}`;
+}
+
+// ---------------------------------------------------------------------------
+// Market Section (enhanced with global stats bar)
+// ---------------------------------------------------------------------------
+
 function MarketSection() {
+  const { t } = useI18n();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['global-market-data'],
+    queryFn: fetchGlobalData,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
+  const stats = data
+    ? [
+        {
+          title: t('hero.totalMarketCap'),
+          value: formatLargeNumber(data.totalMarketCap),
+          icon: TrendingUp,
+          iconBg: 'bg-bullish/10',
+          iconColor: 'text-bullish',
+        },
+        {
+          title: t('hero.volume24h'),
+          value: formatLargeNumber(data.totalVolume),
+          icon: BarChart3,
+          iconBg: 'bg-gold/10',
+          iconColor: 'text-gold',
+        },
+        {
+          title: t('hero.btcDominance'),
+          value: `${data.btcDominance.toFixed(1)}%`,
+          icon: PieChart,
+          iconBg: 'bg-chart-3/10',
+          iconColor: 'text-chart-3',
+        },
+        {
+          title: t('hero.activeCryptos'),
+          value: data.activeCryptos.toLocaleString(),
+          icon: Activity,
+          iconBg: 'bg-sky-500/10',
+          iconColor: 'text-sky-500',
+        },
+      ]
+    : [];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      {/* Global Market Stats Bar */}
+      {isLoading ? (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="bg-card border-border/50">
+              <CardContent className="p-4">
+                <Skeleton className="h-3 w-20 mb-2" />
+                <Skeleton className="h-6 w-28" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          {stats.map((stat) => {
+            const Icon = stat.icon;
+            return (
+              <Card key={stat.title} className="bg-card border-border/50 hover:border-gold/20 transition-colors duration-200">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs text-muted-foreground uppercase tracking-wider">{stat.title}</span>
+                    <div className={`size-7 rounded-md ${stat.iconBg} flex items-center justify-center`}>
+                      <Icon className={`size-3.5 ${stat.iconColor}`} />
+                    </div>
+                  </div>
+                  <span className="text-lg sm:text-xl font-bold text-foreground tracking-tight">{stat.value}</span>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
       {/* TradingView Chart */}
       <div className="rounded-xl border border-border bg-card overflow-hidden">
         <div className="p-4">
@@ -191,42 +327,7 @@ function AIChatFullSection() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Simple placeholder sections for less common features
-// ---------------------------------------------------------------------------
-
-function PredictionAccuracySection() {
-  const { t } = useI18n();
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-2xl font-bold text-foreground mb-2">{t('predictionAccuracy.title')}</h1>
-      <p className="text-muted-foreground mb-8">{t('predictionAccuracy.subtitle')}</p>
-      <div className="text-center py-16 rounded-xl border border-border bg-card">
-        <div className="text-4xl mb-4">📊</div>
-        <p className="text-muted-foreground">{t('predictionAccuracy.noPredictions')}</p>
-        <div className="flex justify-center gap-4 mt-6">
-          <span className="px-3 py-1.5 rounded-full text-xs bg-bullish/10 text-bullish border border-bullish/20">{t('predictionAccuracy.excellent')}</span>
-          <span className="px-3 py-1.5 rounded-full text-xs bg-gold/10 text-gold border border-gold/20">{t('predictionAccuracy.good')}</span>
-          <span className="px-3 py-1.5 rounded-full text-xs bg-bearish/10 text-bearish border border-bearish/20">{t('predictionAccuracy.needsImprovement')}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BatchAnalysisSection() {
-  const { t } = useI18n();
-  return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-      <h1 className="text-2xl font-bold text-foreground mb-2">{t('batchAnalysis.title')}</h1>
-      <p className="text-muted-foreground mb-8">{t('batchAnalysis.subtitle')}</p>
-      <div className="text-center py-16 rounded-xl border border-border bg-card">
-        <div className="text-4xl mb-4">🔍</div>
-        <p className="text-muted-foreground">{t('batchAnalysis.noResults')}</p>
-      </div>
-    </div>
-  );
-}
+// PredictionAccuracySection and BatchAnalysisSection are now imported from their own component files
 
 // ---------------------------------------------------------------------------
 // TradingView Widget
