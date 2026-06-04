@@ -1,0 +1,11 @@
+{
+  "name": "driftcrypto-telegram-bot",
+  "version": "1.0.0",
+  "description": "DriftCrypto Telegram Bot - Official channel bot for driftcrypto.fun",
+  "scripts": {
+    "dev": "bun index.ts"
+  },
+  "dependencies": {
+    "grammy": "^1.36.3"
+  }
+}

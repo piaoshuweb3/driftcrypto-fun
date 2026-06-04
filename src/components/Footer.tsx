@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Github, Twitter, FileText, Server, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Github, Twitter, FileText, Server, ShieldAlert, Send } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 export default function Footer() {
@@ -62,6 +62,16 @@ export default function Footer() {
             >
               <Server className="size-4" />
               <span className="text-xs hidden sm:inline">MCP</span>
+            </a>
+            <a
+              href="https://t.me/DriftcryptoBot"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-gold transition-colors flex items-center gap-1"
+              aria-label="Telegram"
+            >
+              <Send className="size-4" />
+              <span className="text-xs hidden sm:inline">Telegram</span>
             </a>
           </nav>
 
