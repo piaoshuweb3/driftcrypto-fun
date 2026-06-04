@@ -5,6 +5,7 @@ import { TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { useI18n } from '@/lib/i18n';
 
 interface CoinData {
   coinId: string;
@@ -45,6 +46,8 @@ const itemVariants = {
 };
 
 export default function TrendingStrip() {
+  const { t } = useI18n();
+
   const {
     data: coins,
     isLoading,
@@ -65,7 +68,7 @@ export default function TrendingStrip() {
       <div className="flex items-center gap-2 mb-3 px-1">
         <TrendingUp className="size-5 text-gold" />
         <h2 className="text-sm font-semibold text-gold tracking-wide uppercase">
-          Trending
+          {t('trending.label')}
         </h2>
       </div>
 
@@ -97,7 +100,7 @@ export default function TrendingStrip() {
 
           {isError && (
             <p className="text-sm text-bearish px-2">
-              Failed to load trending data
+              {t('trending.failedToLoad')}
             </p>
           )}
 

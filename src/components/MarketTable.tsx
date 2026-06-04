@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useI18n } from '@/lib/i18n';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -93,6 +94,8 @@ const ITEMS_PER_PAGE = 10;
 /* ------------------------------------------------------------------ */
 
 export default function MarketTable() {
+  const { t } = useI18n();
+
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<FilterOption>('all');
   const [page, setPage] = useState(1);
@@ -187,7 +190,7 @@ export default function MarketTable() {
         <div className="flex items-center gap-2">
           <Filter className="size-5 text-gold" />
           <h2 className="text-lg font-bold text-foreground">
-            Market Overview
+            {t('market.title')}
           </h2>
         </div>
 
@@ -196,7 +199,7 @@ export default function MarketTable() {
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
-              placeholder="Search coins..."
+              placeholder={t('market.searchPlaceholder')}
               value={search}
               onChange={(e) => handleSearchChange(e.target.value)}
               className="pl-8 h-9 w-full sm:w-56 bg-card border-border text-sm placeholder:text-muted-foreground focus-visible:border-gold/50 focus-visible:ring-gold/20"
@@ -212,11 +215,11 @@ export default function MarketTable() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent className="bg-popover border-border">
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="top10">Top 10</SelectItem>
-              <SelectItem value="top50">Top 50</SelectItem>
-              <SelectItem value="gainers">Gainers</SelectItem>
-              <SelectItem value="losers">Losers</SelectItem>
+              <SelectItem value="all">{t('market.all')}</SelectItem>
+              <SelectItem value="top10">{t('market.top10')}</SelectItem>
+              <SelectItem value="top50">{t('market.top50')}</SelectItem>
+              <SelectItem value="gainers">{t('market.gainers')}</SelectItem>
+              <SelectItem value="losers">{t('market.losers')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -228,22 +231,22 @@ export default function MarketTable() {
           <TableHeader>
             <TableRow className="border-border hover:bg-transparent">
               <TableHead className="w-12 text-muted-foreground text-xs font-medium">
-                #
+                {t('market.rank')}
               </TableHead>
               <TableHead className="text-muted-foreground text-xs font-medium">
-                Name
+                {t('market.name')}
               </TableHead>
               <TableHead className="text-right text-muted-foreground text-xs font-medium">
-                Price
+                {t('market.price')}
               </TableHead>
               <TableHead className="text-right text-muted-foreground text-xs font-medium">
-                24h Change
+                {t('market.change24h')}
               </TableHead>
               <TableHead className="text-right text-muted-foreground text-xs font-medium hidden md:table-cell">
-                Market Cap
+                {t('market.marketCap')}
               </TableHead>
               <TableHead className="text-right text-muted-foreground text-xs font-medium hidden md:table-cell">
-                Volume (24h)
+                {t('market.volume24h')}
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -284,7 +287,7 @@ export default function MarketTable() {
                   colSpan={6}
                   className="text-center py-8 text-bearish text-sm"
                 >
-                  Failed to load market data. Please try again later.
+                  {t('market.failedToLoad')}
                 </TableCell>
               </TableRow>
             )}
@@ -296,7 +299,7 @@ export default function MarketTable() {
                   colSpan={6}
                   className="text-center py-8 text-muted-foreground text-sm"
                 >
-                  No coins found matching your search.
+                  {t('market.noCoinsFound')}
                 </TableCell>
               </TableRow>
             )}
@@ -400,8 +403,8 @@ export default function MarketTable() {
       {!isLoading && !isError && filtered.length > ITEMS_PER_PAGE && (
         <div className="flex items-center justify-between mt-4 px-1">
           <p className="text-xs text-muted-foreground">
-            Showing {(safePage - 1) * ITEMS_PER_PAGE + 1}–
-            {Math.min(safePage * ITEMS_PER_PAGE, filtered.length)} of{' '}
+            {t('market.showing')} {(safePage - 1) * ITEMS_PER_PAGE + 1}–
+            {Math.min(safePage * ITEMS_PER_PAGE, filtered.length)} {t('market.of')}{' '}
             {filtered.length}
           </p>
 

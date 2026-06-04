@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useI18n } from '@/lib/i18n';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -42,12 +43,12 @@ function getGaugeColor(value: number): string {
   return '#22c55e'; // Extreme Greed – green
 }
 
-function getGaugeLabel(value: number): string {
-  if (value <= 25) return 'Extreme Fear';
-  if (value <= 45) return 'Fear';
-  if (value <= 55) return 'Neutral';
-  if (value <= 75) return 'Greed';
-  return 'Extreme Greed';
+function getGaugeLabel(value: number, t: (key: string) => string): string {
+  if (value <= 25) return t('fearGreed.extremeFear');
+  if (value <= 45) return t('fearGreed.fear');
+  if (value <= 55) return t('fearGreed.neutralLabel');
+  if (value <= 75) return t('fearGreed.greed');
+  return t('fearGreed.extremeGreed');
 }
 
 function getGlowColor(value: number): string {
@@ -99,7 +100,6 @@ function GaugeChart({ value }: { value: number }) {
   const arcLargeFlag = value > 50 ? 1 : 0;
 
   const color = getGaugeColor(value);
-  const glowColor = getGlowColor(value);
 
   return (
     <svg
@@ -248,6 +248,7 @@ function GaugeSkeleton() {
 // ---------------------------------------------------------------------------
 
 export default function FearGreedWidget() {
+  const { t } = useI18n();
   const { data, isLoading, isError } = useQuery({
     queryKey: ['fear-greed'],
     queryFn: fetchFearGreed,
@@ -256,7 +257,7 @@ export default function FearGreedWidget() {
   });
 
   const value = data?.value ?? 50;
-  const label = data?.label ?? getGaugeLabel(value);
+  const label = getGaugeLabel(value, t);
   const color = getGaugeColor(value);
   const glowColor = getGlowColor(value);
 
@@ -265,7 +266,7 @@ export default function FearGreedWidget() {
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
           <Activity className="size-4 text-gold" />
-          Fear &amp; Greed Index
+          {t('fearGreed.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="pb-4">
@@ -273,7 +274,7 @@ export default function FearGreedWidget() {
 
         {isError && !data && (
           <div className="text-center py-8">
-            <p className="text-bearish text-xs">Failed to load data</p>
+            <p className="text-bearish text-xs">{t('fearGreed.failedToLoad')}</p>
           </div>
         )}
 
@@ -300,7 +301,7 @@ export default function FearGreedWidget() {
             {/* Updated time */}
             {data.updatedAt && (
               <span className="text-[10px] text-muted-foreground mt-1">
-                Updated{' '}
+                {t('fearGreed.updated')}{' '}
                 {new Date(data.updatedAt).toLocaleDateString(undefined, {
                   month: 'short',
                   day: 'numeric',

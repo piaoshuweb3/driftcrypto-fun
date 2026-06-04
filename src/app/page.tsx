@@ -5,6 +5,7 @@ import NewsFeed from '@/components/NewsFeed';
 import MarketTable from '@/components/MarketTable';
 import FearGreedWidget from '@/components/FearGreedWidget';
 import AIDigestSection from '@/components/AIDigestSection';
+import AIChatSection from '@/components/AIChatSection';
 import Footer from '@/components/Footer';
 
 export default function Home() {
@@ -25,6 +26,8 @@ export default function Home() {
               <AIDigestSection />
             </div>
           </div>
+          {/* AI Chat */}
+          <AIChatSection />
           {/* News Feed */}
           <NewsFeed />
         </div>

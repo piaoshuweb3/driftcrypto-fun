@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useI18n } from '@/lib/i18n';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -49,17 +50,21 @@ async function fetchNews(): Promise<NewsItem[]> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function timeAgo(dateStr: string): string {
+function timeAgo(
+  dateStr: string,
+  t: (key: string) => string,
+  tArgs: (key: string, args: Record<string, string | number>) => string,
+): string {
   const now = new Date();
   const date = new Date(dateStr);
   const diff = now.getTime() - date.getTime();
   const minutes = Math.floor(diff / 60000);
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
-  if (days > 0) return `${days}d ago`;
-  if (hours > 0) return `${hours}h ago`;
-  if (minutes > 0) return `${minutes}m ago`;
-  return 'Just now';
+  if (days > 0) return tArgs('news.daysAgo', { n: days });
+  if (hours > 0) return tArgs('news.hoursAgo', { n: hours });
+  if (minutes > 0) return tArgs('news.minutesAgo', { n: minutes });
+  return t('news.justNow');
 }
 
 function extractDomain(url: string): string {
@@ -71,25 +76,28 @@ function extractDomain(url: string): string {
   }
 }
 
-function getSentimentConfig(sentiment: NewsItem['sentiment']) {
+function getSentimentConfig(
+  sentiment: NewsItem['sentiment'],
+  t: (key: string) => string,
+) {
   switch (sentiment) {
     case 'bullish':
       return {
-        label: 'Bullish',
+        label: t('news.bullish'),
         icon: TrendingUp,
         className:
           'bg-bullish/10 text-bullish border-bullish/20 hover:bg-bullish/20',
       };
     case 'bearish':
       return {
-        label: 'Bearish',
+        label: t('news.bearish'),
         icon: TrendingDown,
         className:
           'bg-bearish/10 text-bearish border-bearish/20 hover:bg-bearish/20',
       };
     case 'neutral':
       return {
-        label: 'Neutral',
+        label: t('news.neutral'),
         icon: Minus,
         className:
           'bg-neutral/10 text-neutral border-neutral/20 hover:bg-neutral/20',
@@ -149,7 +157,8 @@ function NewsCardSkeleton() {
 // ---------------------------------------------------------------------------
 
 function NewsCard({ item, index }: { item: NewsItem; index: number }) {
-  const sentiment = getSentimentConfig(item.sentiment);
+  const { t, tArgs } = useI18n();
+  const sentiment = getSentimentConfig(item.sentiment, t);
   const SentimentIcon = sentiment.icon;
 
   return (
@@ -192,14 +201,14 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
           <div className="flex items-center justify-between pt-1 mt-auto">
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
               <Clock className="size-3" />
-              {timeAgo(item.publishedAt)}
+              {timeAgo(item.publishedAt, t, tArgs)}
             </span>
             <a
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
               className="text-muted-foreground hover:text-gold transition-colors"
-              aria-label="Open original article"
+              aria-label={t('news.openArticle')}
             >
               <ExternalLink className="size-3.5" />
             </a>
@@ -215,6 +224,7 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
 // ---------------------------------------------------------------------------
 
 export default function NewsFeed() {
+  const { t } = useI18n();
   const [filter, setFilter] = useState<SentimentFilter>('all');
   const [visibleCount, setVisibleCount] = useState(8);
 
@@ -231,12 +241,12 @@ export default function NewsFeed() {
   const hasMore = visibleCount < filtered.length;
 
   return (
-    <section aria-label="AI News Feed">
+    <section aria-label={t('news.title')}>
       {/* Header + Tabs */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
           <Newspaper className="size-5 text-gold" />
-          AI News Feed
+          {t('news.title')}
         </h2>
 
         <Tabs
@@ -248,16 +258,16 @@ export default function NewsFeed() {
         >
           <TabsList className="bg-muted/60 h-8">
             <TabsTrigger value="all" className="text-xs px-2.5 h-6">
-              All
+              {t('news.all')}
             </TabsTrigger>
             <TabsTrigger value="bullish" className="text-xs px-2.5 h-6">
-              Bullish 🟢
+              {t('news.bullish')} 🟢
             </TabsTrigger>
             <TabsTrigger value="bearish" className="text-xs px-2.5 h-6">
-              Bearish 🔴
+              {t('news.bearish')} 🔴
             </TabsTrigger>
             <TabsTrigger value="neutral" className="text-xs px-2.5 h-6">
-              Neutral ⚪
+              {t('news.neutral')} ⚪
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -267,7 +277,7 @@ export default function NewsFeed() {
       {isError && (
         <div className="text-center py-12">
           <p className="text-bearish text-sm">
-            Failed to load news:{' '}
+            {t('news.failedToLoad')}:{' '}
             {error instanceof Error ? error.message : 'Unknown error'}
           </p>
         </div>
@@ -288,7 +298,7 @@ export default function NewsFeed() {
           {visible.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground text-sm">
-                No news found for this filter.
+                {t('news.noNewsFound')}
               </p>
             </div>
           ) : (
@@ -316,7 +326,7 @@ export default function NewsFeed() {
                 onClick={() => setVisibleCount((c) => c + 8)}
                 className="border-border/60 text-muted-foreground hover:text-gold hover:border-gold/40 transition-colors"
               >
-                Load More
+                {t('news.loadMore')}
               </Button>
             </div>
           )}

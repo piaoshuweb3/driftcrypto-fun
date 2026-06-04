@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
+import { useI18n } from '@/lib/i18n';
 
 interface GlobalData {
   totalMarketCap: number;
@@ -93,6 +94,8 @@ function StatCardSkeleton() {
 }
 
 export default function HeroSection() {
+  const { t } = useI18n();
+
   const { data, isLoading, isError } = useQuery({
     queryKey: ['global-market-data'],
     queryFn: fetchGlobalData,
@@ -103,7 +106,7 @@ export default function HeroSection() {
   const stats = data
     ? [
         {
-          title: 'Total Market Cap',
+          title: t('hero.totalMarketCap'),
           value: formatLargeNumber(data.totalMarketCap),
           change: data.marketCapChange24h,
           icon: TrendingUp,
@@ -111,7 +114,7 @@ export default function HeroSection() {
           iconColor: 'text-bullish',
         },
         {
-          title: '24h Volume',
+          title: t('hero.volume24h'),
           value: formatLargeNumber(data.totalVolume),
           change: null,
           icon: BarChart3,
@@ -119,7 +122,7 @@ export default function HeroSection() {
           iconColor: 'text-gold',
         },
         {
-          title: 'BTC Dominance',
+          title: t('hero.btcDominance'),
           value: `${data.btcDominance.toFixed(1)}%`,
           change: null,
           icon: PieChart,
@@ -165,17 +168,16 @@ export default function HeroSection() {
             variants={headingVariants}
             className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight leading-tight"
           >
-            <span className="gradient-text">AI Powered</span>{' '}
-            <span className="text-foreground">Cryptocurrency</span>
+            <span className="gradient-text">{t('hero.title1')}</span>{' '}
+            <span className="text-foreground">{t('hero.title2')}</span>
             <br />
-            <span className="text-foreground">Insights</span>
+            <span className="text-foreground">{t('hero.title3')}</span>
           </motion.h1>
           <motion.p
             variants={headingVariants}
             className="mt-4 sm:mt-5 text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed"
           >
-            Live cryptocurrency prices, AI-driven news aggregation, and
-            intelligent market analysis
+            {t('hero.subtitle')}
           </motion.p>
         </motion.div>
 
@@ -192,7 +194,7 @@ export default function HeroSection() {
               <CardContent className="p-5 sm:p-6 text-center">
                 <Activity className="size-6 text-bearish mx-auto mb-2" />
                 <p className="text-sm text-muted-foreground">
-                  Failed to load market data
+                  {t('hero.failedToLoad')}
                 </p>
               </CardContent>
             </Card>

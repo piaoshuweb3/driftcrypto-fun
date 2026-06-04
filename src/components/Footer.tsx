@@ -1,6 +1,11 @@
+'use client';
+
 import { AlertTriangle, Github, Twitter, FileText, Server } from 'lucide-react';
+import { useI18n } from '@/lib/i18n';
 
 export default function Footer() {
+  const { t } = useI18n();
+
   return (
     <footer className="mt-auto border-t border-border/40 bg-[#08080d]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -8,8 +13,7 @@ export default function Footer() {
         <div className="flex items-start gap-2 mb-4">
           <AlertTriangle className="size-4 text-gold/70 shrink-0 mt-0.5" />
           <p className="text-xs text-muted-foreground leading-relaxed">
-            Content on this site is for informational purposes only. Not financial
-            advice. Always DYOR.
+            {t('footer.disclaimer')}
           </p>
         </div>
 
@@ -39,10 +43,10 @@ export default function Footer() {
               target="_blank"
               rel="noopener noreferrer"
               className="text-muted-foreground hover:text-gold transition-colors flex items-center gap-1"
-              aria-label="API Docs"
+              aria-label={t('footer.apiDocs')}
             >
               <FileText className="size-4" />
-              <span className="text-xs hidden sm:inline">API Docs</span>
+              <span className="text-xs hidden sm:inline">{t('footer.apiDocs')}</span>
             </a>
             <a
               href="/api/mcp/manifest"
@@ -57,7 +61,7 @@ export default function Footer() {
           </nav>
 
           <p className="text-[11px] text-muted-foreground/60">
-            © 2026 CoinRichAI. All rights reserved.
+            {t('footer.copyright')}
           </p>
         </div>
       </div>
