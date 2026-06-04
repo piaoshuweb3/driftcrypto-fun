@@ -35,7 +35,8 @@ async function fetchGlobalData(): Promise<GlobalData & { btcDominance: number }>
   const data: PricesResponse = await res.json();
 
   // Calculate BTC dominance from coins data
-  const btcCoin = data.coins.find((c) => c.coinId === 'bitcoin');
+  const coins = Array.isArray(data?.coins) ? data.coins : [];
+  const btcCoin = coins.find((c) => c.coinId === 'bitcoin');
   const btcDominance =
     btcCoin?.marketCap && data.global.totalMarketCap > 0
       ? (btcCoin.marketCap / data.global.totalMarketCap) * 100

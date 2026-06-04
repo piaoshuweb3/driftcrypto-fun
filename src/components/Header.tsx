@@ -51,53 +51,59 @@ import { useSession, signOut } from 'next-auth/react';
 import SignInDialog from '@/components/auth/SignInDialog';
 import MembershipDialog from '@/components/auth/MembershipDialog';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
+import type { SectionId } from '@/app/page';
 
 // ---------------------------------------------------------------------------
 // Nav items (main bar)
 // ---------------------------------------------------------------------------
 interface NavItem {
-  href: string;
+  section: SectionId;
   labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const mainNavItems: NavItem[] = [
-  { href: '#', labelKey: 'header.dashboard', icon: BarChart3 },
-  { href: '#market', labelKey: 'header.market', icon: TrendingUp },
-  { href: '#portfolio', labelKey: 'header.portfolio', icon: Briefcase },
-  { href: '#screener', labelKey: 'header.screener', icon: ScanSearch },
-  { href: '#ai-chat', labelKey: 'header.aiChat', icon: MessageSquare },
-  { href: '#nft', labelKey: 'header.nft', icon: Layers },
+  { section: 'dashboard', labelKey: 'header.dashboard', icon: BarChart3 },
+  { section: 'market', labelKey: 'header.market', icon: TrendingUp },
+  { section: 'portfolio', labelKey: 'header.portfolio', icon: Briefcase },
+  { section: 'screener', labelKey: 'header.screener', icon: ScanSearch },
+  { section: 'ai-chat', labelKey: 'header.aiChat', icon: MessageSquare },
+  { section: 'nft', labelKey: 'header.nft', icon: Layers },
 ];
 
 // ---------------------------------------------------------------------------
 // "More" dropdown items
 // ---------------------------------------------------------------------------
 interface MoreItem {
-  href: string;
+  section: SectionId;
   labelKey: string;
   icon: React.ComponentType<{ className?: string }>;
 }
 
 const moreItems: MoreItem[] = [
-  { href: '#ai-analysis', labelKey: 'header.aiAnalysis', icon: Brain },
-  { href: '#technical-analysis', labelKey: 'header.technicalAnalysis', icon: LineChart },
-  { href: '#sentiment', labelKey: 'header.sentiment', icon: HeartPulse },
-  { href: '#enhanced-predictions', labelKey: 'header.enhancedPredictions', icon: Sparkles },
-  { href: '#market-analysis', labelKey: 'header.marketAnalysis', icon: BarChartBig },
-  { href: '#macro-economics', labelKey: 'header.macroEconomics', icon: Landmark },
-  { href: '#correlations', labelKey: 'header.correlations', icon: GitBranch },
-  { href: '#microstructure', labelKey: 'header.microstructure', icon: Microscope },
-  { href: '#trending', labelKey: 'header.trending', icon: Flame },
-  { href: '#prediction-accuracy', labelKey: 'header.predictionAccuracy', icon: Target },
-  { href: '#batch-analysis', labelKey: 'header.batchAnalysis', icon: Layers },
+  { section: 'ai-analysis', labelKey: 'header.aiAnalysis', icon: Brain },
+  { section: 'technical-analysis', labelKey: 'header.technicalAnalysis', icon: LineChart },
+  { section: 'sentiment', labelKey: 'header.sentiment', icon: HeartPulse },
+  { section: 'enhanced-predictions', labelKey: 'header.enhancedPredictions', icon: Sparkles },
+  { section: 'market-analysis', labelKey: 'header.marketAnalysis', icon: BarChartBig },
+  { section: 'macro-economics', labelKey: 'header.macroEconomics', icon: Landmark },
+  { section: 'correlations', labelKey: 'header.correlations', icon: GitBranch },
+  { section: 'microstructure', labelKey: 'header.microstructure', icon: Microscope },
+  { section: 'trending', labelKey: 'header.trending', icon: Flame },
+  { section: 'prediction-accuracy', labelKey: 'header.predictionAccuracy', icon: Target },
+  { section: 'batch-analysis', labelKey: 'header.batchAnalysis', icon: Layers },
 ];
 
 // ---------------------------------------------------------------------------
 // Header component
 // ---------------------------------------------------------------------------
-export default function Header() {
+
+interface HeaderProps {
+  activeSection: SectionId;
+  onSectionChange: (section: SectionId) => void;
+}
+
+export default function Header({ activeSection, onSectionChange }: HeaderProps) {
   const { t, locale, setLocale } = useI18n();
   const { data: session } = useSession();
   const [scrolled, setScrolled] = useState(false);
@@ -117,6 +123,14 @@ export default function Header() {
 
   const toggleLocale = () => {
     setLocale(locale === 'en' ? 'zh' : 'en');
+  };
+
+  const handleNavClick = (section: SectionId) => {
+    onSectionChange(section);
+    window.location.hash = section;
+    setMobileOpen(false);
+    // Scroll to top on section change
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // Derive user initials for avatar fallback
@@ -147,7 +161,10 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left: Logo + Brand */}
-          <Link href="/" className="flex items-center gap-2.5 group shrink-0">
+          <button
+            onClick={() => handleNavClick('dashboard')}
+            className="flex items-center gap-2.5 group shrink-0"
+          >
             <div className="relative w-8 h-8 overflow-hidden rounded-lg ring-1 ring-gold/20 group-hover:ring-gold/40 transition-all">
               <img
                 src="/driftcrypto-logo.svg"
@@ -160,28 +177,37 @@ export default function Header() {
             <span className="text-xl font-bold tracking-tight gradient-text">
               driftcrypto
             </span>
-          </Link>
+          </button>
 
           {/* Center: Navigation Links (desktop) */}
           <nav className="hidden lg:flex items-center gap-1">
             {mainNavItems.map((link) => {
               const Icon = link.icon;
+              const isActive = activeSection === link.section;
               return (
-                <Link
+                <button
                   key={link.labelKey}
-                  href={link.href}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                  onClick={() => handleNavClick(link.section)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'text-gold bg-gold/10'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                  }`}
                 >
                   <Icon className="size-4" />
                   <span>{t(link.labelKey)}</span>
-                </Link>
+                </button>
               );
             })}
 
             {/* More dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors">
+                <button className={`flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  moreItems.some(m => m.section === activeSection)
+                    ? 'text-gold bg-gold/10'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                }`}>
                   <span>{t('header.more')}</span>
                   <ChevronDown className="size-3.5" />
                 </button>
@@ -196,10 +222,12 @@ export default function Header() {
                 <DropdownMenuSeparator className="bg-white/5" />
                 {moreItems.map((item) => {
                   const Icon = item.icon;
+                  const isActive = activeSection === item.section;
                   return (
                     <DropdownMenuItem
                       key={item.labelKey}
-                      className="cursor-pointer text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-white/5"
+                      className={`cursor-pointer ${isActive ? 'text-gold' : 'text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-white/5'}`}
+                      onClick={() => handleNavClick(item.section)}
                     >
                       <Icon className="size-4" />
                       <span>{t(item.labelKey)}</span>
@@ -328,6 +356,7 @@ export default function Header() {
                   <DropdownMenuSeparator className="bg-white/5" />
                   <DropdownMenuItem
                     className="cursor-pointer text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-white/5"
+                    onClick={() => handleNavClick('portfolio')}
                   >
                     <User className="size-4" />
                     <span>{t('auth.myAccount')}</span>
@@ -418,16 +447,20 @@ export default function Header() {
                     <nav className="flex flex-col gap-0.5 px-4 py-4">
                       {mainNavItems.map((link) => {
                         const Icon = link.icon;
+                        const isActive = activeSection === link.section;
                         return (
-                          <Link
+                          <button
                             key={link.labelKey}
-                            href={link.href}
-                            onClick={() => setMobileOpen(false)}
-                            className="flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                            onClick={() => handleNavClick(link.section)}
+                            className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
+                              isActive
+                                ? 'text-gold bg-gold/10'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                            }`}
                           >
                             <Icon className="size-5" />
                             <span>{t(link.labelKey)}</span>
-                          </Link>
+                          </button>
                         );
                       })}
 
@@ -453,16 +486,20 @@ export default function Header() {
                         >
                           {moreItems.map((item) => {
                             const Icon = item.icon;
+                            const isActive = activeSection === item.section;
                             return (
-                              <Link
+                              <button
                                 key={item.labelKey}
-                                href={item.href}
-                                onClick={() => setMobileOpen(false)}
-                                className="flex items-center gap-3 pl-10 pr-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                                onClick={() => handleNavClick(item.section)}
+                                className={`flex items-center gap-3 pl-10 pr-3 py-2.5 rounded-lg text-sm transition-colors ${
+                                  isActive
+                                    ? 'text-gold bg-gold/10'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                                }`}
                               >
                                 <Icon className="size-4" />
                                 <span>{t(item.labelKey)}</span>
-                              </Link>
+                              </button>
                             );
                           })}
                         </motion.div>

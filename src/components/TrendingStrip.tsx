@@ -22,7 +22,7 @@ async function fetchPrices(): Promise<CoinData[]> {
   const res = await fetch('/api/prices');
   if (!res.ok) throw new Error('Failed to fetch');
   const data = await res.json();
-  return data.coins;
+  return Array.isArray(data?.coins) ? data.coins : [];
 }
 
 const containerVariants = {

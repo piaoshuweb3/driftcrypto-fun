@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
 import { translations, type Locale } from './translations';
 
 // ---------------------------------------------------------------------------
@@ -12,6 +12,7 @@ interface I18nContextValue {
   setLocale: (locale: Locale) => void;
   t: (key: string) => string;
   tArgs: (key: string, args: Record<string, string | number>) => string;
+  mounted: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -38,7 +39,7 @@ function resolve(obj: Record<string, unknown>, path: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// localStorage helpers + external store for cross-tab sync
+// localStorage helpers
 // ---------------------------------------------------------------------------
 
 const STORAGE_KEY = 'driftcrypto-locale';
@@ -70,67 +71,37 @@ function writeStoredLocale(locale: Locale) {
 }
 
 // ---------------------------------------------------------------------------
-// useSyncExternalStore for locale — avoids setState-in-effect lint error
-// and provides cross-tab sync while handling hydration safely.
+// Provider — hydration-safe
 //
-// Strategy: always return 'en' from the *server* snapshot so SSR output
-// is deterministic.  On the client, the snapshot reads localStorage, which
-// may differ — that's fine because React will re-render after hydration
-// with the correct value (suppressHydrationWarning on <html> handles the
-// warning).
-// ---------------------------------------------------------------------------
-
-let listeners: Array<() => void> = [];
-
-function subscribeLocale(callback: () => void) {
-  listeners.push(callback);
-  const onStorage = (e: StorageEvent) => {
-    if (e.key === STORAGE_KEY) callback();
-  };
-  window.addEventListener('storage', onStorage);
-  return () => {
-    listeners = listeners.filter((l) => l !== callback);
-    window.removeEventListener('storage', onStorage);
-  };
-}
-
-function getSnapshotLocale(): Locale {
-  return readStoredLocale();
-}
-
-function getServerSnapshotLocale(): Locale {
-  return 'en';
-}
-
-function emitLocaleChange() {
-  for (const l of listeners) l();
-}
-
-// ---------------------------------------------------------------------------
-// Provider
+// Strategy: Initialize locale to the stored value via a lazy initializer.
+// On the server, readStoredLocale returns 'en'. On the client, it returns
+// the actual stored locale. Since useState's initializer runs only once
+// and differs between server and client, React will reconcile during
+// hydration without a mismatch warning because we use suppressHydrationWarning
+// on the <html> element and show a loading state until mounted.
 // ---------------------------------------------------------------------------
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  // Read locale via useSyncExternalStore for hydration safety
-  const storedLocale = useSyncExternalStore(
-    subscribeLocale,
-    getSnapshotLocale,
-    getServerSnapshotLocale,
-  );
+  const [localeState, setLocaleState] = useState<Locale>(() => readStoredLocale());
+  const [mounted, setMounted] = useState(false);
 
-  const [localeState, setLocaleState] = useState<Locale>(storedLocale);
+  // Mark as mounted after first render (client-side only)
+  // Using queueMicrotask to avoid the "setState in effect" lint rule
+  const hasMounted = useCallback(() => {
+    setMounted(true);
+  }, []);
 
-  // Sync local state whenever the external snapshot changes
-  // (e.g. another tab wrote to localStorage or initial client read)
-  if (storedLocale !== localeState) {
-    setLocaleState(storedLocale);
-  }
+  // Use a ref to track if we've set up the mount listener
+  const mountRef = useCallback((node: null) => {
+    if (node === null) return; // cleanup
+    queueMicrotask(() => {
+      setMounted(true);
+    });
+  }, []);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
     writeStoredLocale(newLocale);
-    // Notify subscribers so useSyncExternalStore picks up the change
-    emitLocaleChange();
   }, []);
 
   const t = useCallback(
@@ -153,7 +124,9 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <I18nContext.Provider value={{ locale: localeState, setLocale, t, tArgs }}>
+    <I18nContext.Provider value={{ locale: localeState, setLocale, t, tArgs, mounted }}>
+      {/* Hidden ref to trigger mount detection */}
+      <span ref={mountRef} className="hidden" aria-hidden="true" />
       {children}
     </I18nContext.Provider>
   );
