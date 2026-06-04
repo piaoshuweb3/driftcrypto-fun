@@ -28,6 +28,7 @@ import MicrostructureSection from '@/components/MicrostructureSection';
 import PredictionAccuracySection from '@/components/PredictionAccuracySection';
 import BatchAnalysisSection from '@/components/BatchAnalysisSection';
 import PiaoShuAnalysisSection from '@/components/PiaoShuAnalysisSection';
+import MembershipSection from '@/components/MembershipSection';
 import Footer from '@/components/Footer';
 import { useI18n } from '@/lib/i18n';
 
@@ -39,6 +40,7 @@ export type SectionId =
   | 'ai-chat'
   | 'nft'
   | 'piao-shu'
+  | 'membership'
   | 'ai-analysis'
   | 'technical-analysis'
   | 'sentiment'
@@ -93,6 +95,7 @@ export default function Home() {
         {activeSection === 'ai-chat' && <AIChatFullSection />}
         {activeSection === 'nft' && <NFTSection />}
         {activeSection === 'piao-shu' && <PiaoShuAnalysisSection />}
+        {activeSection === 'membership' && <MembershipSection />}
         {activeSection === 'ai-analysis' && <AIAnalysisSection onSectionChange={setActiveSection} />}
         {activeSection === 'technical-analysis' && <TechnicalAnalysisSection />}
         {activeSection === 'sentiment' && <SentimentSection />}
@@ -112,7 +115,7 @@ export default function Home() {
 
 function isValidSection(id: string): id is SectionId {
   const validSections: SectionId[] = [
-    'dashboard', 'market', 'portfolio', 'screener', 'ai-chat', 'nft', 'piao-shu',
+    'dashboard', 'market', 'portfolio', 'screener', 'ai-chat', 'nft', 'piao-shu', 'membership',
     'ai-analysis', 'technical-analysis', 'sentiment', 'enhanced-predictions',
     'market-analysis', 'macro-economics', 'correlations', 'microstructure',
     'trending', 'prediction-accuracy', 'batch-analysis',

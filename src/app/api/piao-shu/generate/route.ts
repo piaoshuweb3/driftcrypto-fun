@@ -378,14 +378,20 @@ ${newsDigest || '暂无今日新闻数据。'}
 
 export async function POST(req: NextRequest) {
   try {
-    // Check authorization (simple Bearer token check for now)
+    // Check authorization: either Bearer key OR logged-in Plus/Pro member
     const authHeader = req.headers.get('authorization');
     const body = await req.json().catch(() => ({}));
     const overrideKey = process.env.PIAOSHU_GENERATE_KEY;
 
-    // Allow if: has valid generate key, or is admin
-    if (overrideKey && authHeader !== `Bearer ${overrideKey}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    // Allow if: has valid generate key
+    const hasKey = overrideKey && authHeader === `Bearer ${overrideKey}`;
+
+    // Or: is logged-in Plus/Pro member (membership header set by frontend)
+    const userMembership = req.headers.get('x-membership') || 'free';
+    const hasMembershipAccess = userMembership === 'plus' || userMembership === 'pro' || userMembership === 'admin';
+
+    if (!hasKey && !hasMembershipAccess) {
+      return NextResponse.json({ error: 'Unauthorized', message: 'Active Plus or Pro membership required to generate reports.' }, { status: 401 });
     }
 
     const today = new Date().toISOString().split('T')[0]; // "2026-06-04"

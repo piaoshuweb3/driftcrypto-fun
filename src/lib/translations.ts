@@ -33,6 +33,7 @@ export const translations = {
       predictionAccuracy: 'Prediction Accuracy',
       batchAnalysis: 'Batch Analysis',
       piaoShuAnalysis: 'PiaoShu Analysis',
+      membershipService: 'Membership',
       signInRequired: 'Sign in required. Please sign in to access all features.',
     },
     // Hero Section
@@ -587,6 +588,61 @@ export const translations = {
       winnerBadge: 'Winner',
       metric: 'Metric',
     },
+    // Membership Service (会员服务 - full pricing page)
+    membershipSvc: {
+      title: 'Membership Plans',
+      subtitle: 'Unlock the full power of driftcrypto.fun — AI analysis, PiaoShu daily reports, real-time alerts, and more.',
+      tierFree: 'Free',
+      tierFreeDesc: 'Get started with basic crypto intelligence',
+      tierPlus: 'Plus',
+      tierPlusDesc: 'For active traders who need AI-powered insights',
+      tierPro: 'Pro',
+      tierProDesc: 'For professionals who demand the best tools',
+      // Billing cycles
+      monthly: 'Monthly',
+      quarterly: 'Quarterly',
+      yearly: 'Yearly',
+      perMonth: '/mo',
+      perQuarter: '/quarter',
+      perYear: '/year',
+      bestValue: 'Best Value',
+      save: 'Save',
+      yr: 'yr',
+      save14: 'Save 14%',
+      save35: 'Save 35%',
+      // Features
+      freeFeatures: 'Real-time market data, 5 AI chats per day, Limited news feed, Basic price alerts',
+      plusFeatures: 'PiaoShu daily reports (full access), 100 AI chats per day, Advanced technical analysis, Full news & sentiment, Market radar & funding tracking, Price alerts (up to 20)',
+      proFeatures: 'Unlimited AI chat, All PiaoShu premium content, Real-time on-chain alerts, API access & MCP integration, Priority support, Unlimited price alerts, Early access to new features, USDC payment discount',
+      // CTAs
+      getStarted: 'Get Started Free',
+      upgradeNow: 'Upgrade Now',
+      goPro: 'Go Pro',
+      currentPlan: 'Current Plan',
+      mostPopular: 'Most Popular',
+      // Comparison table
+      comparisonTitle: 'Feature Comparison',
+      feature: 'Feature',
+      comparisonRows: 'Market data;✅ All;✅ All;✅ All|AI Chat;5/day;100/day;Unlimited|PiaoShu Reports;Preview only;✅ Full;✅ Full|News & Sentiment;Limited;✅ Full;✅ Full|Technical Analysis;Basic;✅ Advanced;✅ Advanced|Price Alerts;3;20;Unlimited|Funding Radar;❌;✅;✅|Airdrop Radar;❌;✅;✅|API Access;❌;❌;✅|MCP Integration;❌;❌;✅|On-chain Alerts;❌;❌;✅|USDC Discount;❌;❌;✅|Support;Community;Email;Priority',
+      // Bottom cards
+      paymentMethods: 'Payment Methods',
+      paymentMethodsDesc: 'Pay with credit card (USD) or crypto wallet (USDC on Ethereum/Base). Crypto payments receive a 5% discount on annual plans. All transactions are processed securely.',
+      refundPolicy: 'Refund Policy',
+      refundPolicyDesc: '14-day money-back guarantee for all new subscriptions. No questions asked. Cancel anytime — your access continues until the end of the billing period.',
+      whyChoose: 'Why driftcrypto?',
+      whyChooseDesc: 'We combine AI-powered market analysis with PiaoShu\'s unique perspective — the only platform offering personality-driven crypto intelligence at an accessible price point.',
+      // Market comparison
+      marketCompareTitle: 'How We Compare',
+      service: 'Service',
+      entryPrice: 'Entry Price',
+      yearlyPrice: 'Yearly',
+      aiAnalysis: 'AI Analysis',
+      piaoshuStyle: 'PiaoShu Style',
+      // USDC
+      usdcNote: 'USDC payments on Ethereum or Base network',
+      // General
+      disclaimer: 'Prices are in USD. USDC payments are approximate equivalents. All plans auto-renew. Cancel anytime. Not financial advice — see our full disclaimer in the footer.',
+    },
     // PiaoShu Analysis (飘叔分析 - paid section)
     piaoShu: {
       title: 'PiaoShu Analysis',
@@ -679,6 +735,7 @@ export const translations = {
       predictionAccuracy: '预测准确率',
       batchAnalysis: '批量分析',
       piaoShuAnalysis: '飘叔分析',
+      membershipService: '会员服务',
       signInRequired: '需要登录。请登录以访问所有功能。',
     },
     // Hero Section
@@ -1232,6 +1289,61 @@ export const translations = {
       tableView: '表格视图',
       winnerBadge: '胜出',
       metric: '指标',
+    },
+    // 会员服务 (完整定价页面)
+    membershipSvc: {
+      title: '会员方案',
+      subtitle: '解锁 driftcrypto.fun 的全部功能 — AI 分析、飘叔每日报告、实时预警等。',
+      tierFree: '免费版',
+      tierFreeDesc: '基础加密情报，快速入门',
+      tierPlus: '进阶版',
+      tierPlusDesc: '适合需要 AI 驱动洞察的活跃交易者',
+      tierPro: '专业版',
+      tierProDesc: '适合需要顶级工具的专业人士',
+      // 计费周期
+      monthly: '月付',
+      quarterly: '季付',
+      yearly: '年付',
+      perMonth: '/月',
+      perQuarter: '/季',
+      perYear: '/年',
+      bestValue: '最划算',
+      save: '省',
+      yr: '年',
+      save14: '省14%',
+      save35: '省35%',
+      // 功能特性
+      freeFeatures: '实时行情数据, 每天5次AI对话, 有限新闻资讯, 基础价格预警',
+      plusFeatures: '飘叔每日报告（完整访问）, 每天100次AI对话, 高级技术分析, 完整新闻与情绪分析, 市场雷达与融资追踪, 价格预警（最多20个）',
+      proFeatures: '无限AI对话, 所有飘叔付费内容, 实时链上预警, API访问与MCP集成, 优先客服支持, 无限价格预警, 新功能抢先体验, USDC支付折扣',
+      // 按钮
+      getStarted: '免费开始',
+      upgradeNow: '立即升级',
+      goPro: '升级专业版',
+      currentPlan: '当前方案',
+      mostPopular: '最受欢迎',
+      // 功能对比
+      comparisonTitle: '功能对比',
+      feature: '功能',
+      comparisonRows: '行情数据;✅ 全部;✅ 全部;✅ 全部|AI 对话;5次/天;100次/天;无限|飘叔报告;仅预览;✅ 完整;✅ 完整|新闻与情绪;有限;✅ 完整;✅ 完整|技术分析;基础;✅ 高级;✅ 高级|价格预警;3个;20个;无限|融资雷达;❌;✅;✅|空投雷达;❌;✅;✅|API 访问;❌;❌;✅|MCP 集成;❌;❌;✅|链上预警;❌;❌;✅|USDC 折扣;❌;❌;✅|客服支持;社区;邮件;优先',
+      // 底部卡片
+      paymentMethods: '支付方式',
+      paymentMethodsDesc: '支持信用卡（USD）或加密钱包（USDC，Ethereum/Base 网络）。加密支付年付方案享受5%折扣。所有交易安全处理。',
+      refundPolicy: '退款政策',
+      refundPolicyDesc: '新订阅14天无理由退款保障。随时取消——您的访问权限将持续到当前计费周期结束。',
+      whyChoose: '为什么选择 driftcrypto？',
+      whyChooseDesc: '我们将 AI 驱动的市场分析与飘叔独特视角相结合——唯一以亲民价格提供人格化加密情报的平台。',
+      // 市场对比
+      marketCompareTitle: '市场对比',
+      service: '服务',
+      entryPrice: '入门价',
+      yearlyPrice: '年付',
+      aiAnalysis: 'AI分析',
+      piaoshuStyle: '飘叔风格',
+      // USDC
+      usdcNote: 'USDC 支付基于 Ethereum 或 Base 网络',
+      // 通用
+      disclaimer: '价格以美元计。USDC 支付为近似等值。所有方案自动续费，随时可取消。不构成投资建议——完整免责声明请见页脚。',
     },
     // 飘叔分析 (付费栏目)
     piaoShu: {

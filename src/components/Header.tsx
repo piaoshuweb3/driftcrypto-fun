@@ -94,6 +94,7 @@ const moreItems: MoreItem[] = [
   { section: 'prediction-accuracy', labelKey: 'header.predictionAccuracy', icon: Target },
   { section: 'batch-analysis', labelKey: 'header.batchAnalysis', icon: Layers },
   { section: 'nft', labelKey: 'header.nft', icon: Layers },
+  { section: 'membership', labelKey: 'header.membershipService', icon: Crown },
 ];
 
 // ---------------------------------------------------------------------------
