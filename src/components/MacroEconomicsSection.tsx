@@ -1,6 +1,7 @@
 'use client';
 
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Globe,
   TrendingUp,
@@ -20,10 +21,14 @@ import {
   Gauge,
   AlertTriangle,
   Flag,
+  ChevronDown,
+  ChevronUp,
+  Info,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useI18n } from '@/lib/i18n';
 
@@ -32,13 +37,13 @@ import { useI18n } from '@/lib/i18n';
 // ---------------------------------------------------------------------------
 
 const indicators = [
-  { name: 'DXY', value: '104.32', change: '+0.15%', positive: true, key: 'dxy', icon: DollarSign },
-  { name: 'CPI', value: '3.4%', change: '-0.1%', positive: true, key: 'cpi', icon: Percent },
-  { name: 'Gold', value: '$2,345', change: '+0.82%', positive: true, key: 'gold', icon: TrendingUp },
-  { name: 'S&P 500', value: '5,234', change: '+0.45%', positive: true, key: 'sp500', icon: BarChart3 },
-  { name: 'VIX', value: '14.5', change: '-2.3%', positive: true, key: 'vix', icon: ShieldAlert },
-  { name: 'Fed Rate', value: '5.25%', change: '0%', positive: true, key: 'fedRate', icon: Landmark },
-  { name: '10Y Treasury', value: '4.35%', change: '+0.05%', positive: false, key: 'treasury10y', icon: Clock },
+  { name: 'DXY', value: '104.32', change: '+0.15%', positive: true, key: 'dxy', icon: DollarSign, contextKey: 'dxyContext', sparkData: [102, 103, 103.5, 104, 103.8, 104.1, 104.32] },
+  { name: 'CPI', value: '3.4%', change: '-0.1%', positive: true, key: 'cpi', icon: Percent, contextKey: 'cpiContext', sparkData: [3.7, 3.6, 3.5, 3.5, 3.4, 3.4, 3.4] },
+  { name: 'Gold', value: '$2,345', change: '+0.82%', positive: true, key: 'gold', icon: TrendingUp, contextKey: 'goldContext', sparkData: [2100, 2150, 2200, 2250, 2300, 2320, 2345] },
+  { name: 'S&P 500', value: '5,234', change: '+0.45%', positive: true, key: 'sp500', icon: BarChart3, contextKey: 'sp500Context', sparkData: [5100, 5120, 5150, 5180, 5200, 5220, 5234] },
+  { name: 'VIX', value: '14.5', change: '-2.3%', positive: true, key: 'vix', icon: ShieldAlert, contextKey: 'vixContext', sparkData: [16, 15.5, 15, 14.8, 14.5, 14.6, 14.5] },
+  { name: 'Fed Rate', value: '5.25%', change: '0%', positive: true, key: 'fedRate', icon: Landmark, contextKey: 'fedRateContext', sparkData: [5.25, 5.25, 5.25, 5.25, 5.25, 5.25, 5.25] },
+  { name: '10Y Treasury', value: '4.35%', change: '+0.05%', positive: false, key: 'treasury10y', icon: Clock, contextKey: 'treasury10yContext', sparkData: [4.2, 4.25, 4.28, 4.3, 4.32, 4.33, 4.35] },
 ];
 
 // ---------------------------------------------------------------------------
@@ -46,12 +51,12 @@ const indicators = [
 // ---------------------------------------------------------------------------
 
 const correlations = [
-  { pair: 'corrDxyBtc', value: -0.67, icon: DollarSign },
-  { pair: 'corrGoldBtc', value: 0.42, icon: TrendingUp },
-  { pair: 'corrSp500Btc', value: 0.58, icon: BarChart3 },
-  { pair: 'corrVixBtc', value: -0.73, icon: ShieldAlert },
-  { pair: 'corrFedRateBtc', value: -0.51, icon: Landmark },
-  { pair: 'corrCpiBtc', value: 0.35, icon: Percent },
+  { pair: 'corrDxyBtc', value: -0.67, icon: DollarSign, strength: 'Strong' },
+  { pair: 'corrGoldBtc', value: 0.42, icon: TrendingUp, strength: 'Moderate' },
+  { pair: 'corrSp500Btc', value: 0.58, icon: BarChart3, strength: 'Moderate' },
+  { pair: 'corrVixBtc', value: -0.73, icon: ShieldAlert, strength: 'Strong' },
+  { pair: 'corrFedRateBtc', value: -0.51, icon: Landmark, strength: 'Moderate' },
+  { pair: 'corrCpiBtc', value: 0.35, icon: Percent, strength: 'Moderate' },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -98,21 +103,68 @@ const calendarEvents: CalendarEvent[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Indicator Card
+// Sparkline SVG helper
+// ---------------------------------------------------------------------------
+
+function SparklineSVG({ data, color, width = 120, height = 32 }: { data: number[]; color: string; width?: number; height?: number }) {
+  if (data.length < 2) return null;
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const padding = 2;
+
+  const points = data.map((val, i) => {
+    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+    const y = height - padding - ((val - min) / range) * (height - padding * 2);
+    return `${x},${y}`;
+  }).join(' ');
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* gradient fill */}
+      <defs>
+        <linearGradient id={`sparkGrad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon
+        points={`${padding},${height - padding} ${points} ${width - padding},${height - padding}`}
+        fill={`url(#sparkGrad-${color.replace('#', '')})`}
+      />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Indicator Card (Enhanced: clickable with detail expansion)
 // ---------------------------------------------------------------------------
 
 function IndicatorCard({
   indicator,
   index,
   t,
+  isExpanded,
+  onToggle,
 }: {
   indicator: (typeof indicators)[0];
   index: number;
   t: (key: string) => string;
+  isExpanded: boolean;
+  onToggle: () => void;
 }) {
   const Icon = indicator.icon;
   const isPositive = indicator.positive;
   const changeIsZero = indicator.change === '0%';
+  const sparkColor = isPositive ? '#22c55e' : '#ef4444';
 
   return (
     <motion.div
@@ -120,31 +172,41 @@ function IndicatorCard({
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.06, duration: 0.4 }}
     >
-      <Card className="bg-card border-border/50 hover:border-gold/20 transition-colors duration-200 h-full">
+      <Card
+        className={`bg-card border-border/50 hover:border-gold/20 transition-colors duration-200 h-full cursor-pointer ${isExpanded ? 'border-gold/30' : ''}`}
+        onClick={onToggle}
+      >
         <CardContent className="py-5">
           <div className="flex items-start justify-between mb-3">
             <div className="size-9 rounded-lg bg-gold/10 flex items-center justify-center shrink-0">
               <Icon className="size-4 text-gold" />
             </div>
-            <Badge
-              variant="outline"
-              className={`text-[10px] font-mono px-1.5 ${
-                changeIsZero
-                  ? 'border-neutral/30 text-neutral'
-                  : isPositive
-                    ? 'border-bullish/30 text-bullish bg-bullish/5'
-                    : 'border-bearish/30 text-bearish bg-bearish/5'
-              }`}
-            >
-              {changeIsZero ? (
-                <Minus className="size-2.5 mr-0.5" />
-              ) : isPositive ? (
-                <TrendingUp className="size-2.5 mr-0.5" />
+            <div className="flex items-center gap-1.5">
+              <Badge
+                variant="outline"
+                className={`text-[10px] font-mono px-1.5 ${
+                  changeIsZero
+                    ? 'border-neutral/30 text-neutral'
+                    : isPositive
+                      ? 'border-bullish/30 text-bullish bg-bullish/5'
+                      : 'border-bearish/30 text-bearish bg-bearish/5'
+                }`}
+              >
+                {changeIsZero ? (
+                  <Minus className="size-2.5 mr-0.5" />
+                ) : isPositive ? (
+                  <TrendingUp className="size-2.5 mr-0.5" />
+                ) : (
+                  <TrendingDown className="size-2.5 mr-0.5" />
+                )}
+                {indicator.change}
+              </Badge>
+              {isExpanded ? (
+                <ChevronUp className="size-3.5 text-muted-foreground" />
               ) : (
-                <TrendingDown className="size-2.5 mr-0.5" />
+                <ChevronDown className="size-3.5 text-muted-foreground" />
               )}
-              {indicator.change}
-            </Badge>
+            </div>
           </div>
           <div className="text-xs text-muted-foreground mb-1">
             {t(`macro.${indicator.key}`)}
@@ -152,12 +214,45 @@ function IndicatorCard({
           <div className="text-xl font-bold text-foreground">{indicator.value}</div>
         </CardContent>
       </Card>
+
+      {/* Expanded detail card */}
+      <AnimatePresence>
+        {isExpanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: 'auto', marginTop: 8 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+          >
+            <Card className="bg-card/50 border-gold/20 border">
+              <CardContent className="py-4 px-4 space-y-3">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <Activity className="size-3 text-gold" />
+                  <span className="text-[10px] font-semibold text-gold uppercase tracking-wider">
+                    {t('macro.indicatorSparkline')}
+                  </span>
+                </div>
+                <SparklineSVG data={indicator.sparkData} color={sparkColor} width={200} height={40} />
+                <div className="flex items-center gap-1.5">
+                  <Info className="size-3 text-muted-foreground" />
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                    {t('macro.indicatorContext')}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {t(`macro.${indicator.contextKey}`)}
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Correlation Card
+// Correlation Card (Enhanced: with tooltip)
 // ---------------------------------------------------------------------------
 
 function CorrelationCard({
@@ -172,6 +267,7 @@ function CorrelationCard({
   const Icon = corr.icon;
   const absValue = Math.abs(corr.value);
   const isPositive = corr.value >= 0;
+  const [showTooltip, setShowTooltip] = useState(false);
 
   const getStrengthLabel = () => {
     if (absValue >= 0.6) return isPositive ? t('macro.correlationPositive') : t('macro.correlationNegative');
@@ -188,6 +284,9 @@ function CorrelationCard({
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.08, duration: 0.4 }}
+      className="relative"
+      onMouseEnter={() => setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
     >
       <Card className="bg-card border-border/50 hover:border-gold/20 transition-colors duration-200 h-full">
         <CardContent className="py-5">
@@ -249,12 +348,44 @@ function CorrelationCard({
           </p>
         </CardContent>
       </Card>
+
+      {/* Tooltip */}
+      <AnimatePresence>
+        {showTooltip && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 pointer-events-none"
+          >
+            <div className="bg-popover border border-border/50 rounded-lg shadow-xl p-3 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('macro.correlationTooltipStrength')}</span>
+                <span className={`font-semibold ${textColor}`}>
+                  {absValue >= 0.6 ? t('macro.correlationStrong') : t('macro.correlationModerate')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('macro.correlationTooltipDirection')}</span>
+                <span className={`font-semibold ${textColor}`}>
+                  {isPositive ? t('macro.correlationDirectionPositive') : t('macro.correlationDirectionNegative')}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{t('macro.correlationTooltipPeriod')}</span>
+                <span className="font-semibold text-foreground">90-day rolling</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Risk Gauge
+// Risk Gauge (Enhanced: pulsing glow)
 // ---------------------------------------------------------------------------
 
 function RiskGauge({ score, t }: { score: number; t: (key: string) => string }) {
@@ -280,6 +411,14 @@ function RiskGauge({ score, t }: { score: number; t: (key: string) => string }) 
     if (score >= 40) return '#d4a843';
     if (score >= 20) return '#10b981';
     return '#0ea5e9';
+  };
+
+  const getGlowColor = () => {
+    if (score >= 80) return 'rgba(244,63,94,0.4)';
+    if (score >= 60) return 'rgba(245,158,11,0.4)';
+    if (score >= 40) return 'rgba(212,168,67,0.4)';
+    if (score >= 20) return 'rgba(16,185,129,0.4)';
+    return 'rgba(14,165,233,0.4)';
   };
 
   // SVG gauge: semicircle from left to right
@@ -312,10 +451,29 @@ function RiskGauge({ score, t }: { score: number; t: (key: string) => string }) 
             initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset: circumference - progress }}
             transition={{ duration: 1.2, ease: 'easeOut' }}
+            style={{
+              filter: `drop-shadow(0 0 6px ${getGlowColor()})`,
+            }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-end pb-1">
-          <span className={`text-3xl font-bold font-mono ${getColor()}`}>{score}</span>
+          <motion.span
+            className={`text-3xl font-bold font-mono ${getColor()}`}
+            animate={{
+              textShadow: [
+                `0 0 8px ${getGlowColor()}`,
+                `0 0 20px ${getGlowColor()}`,
+                `0 0 8px ${getGlowColor()}`,
+              ],
+            }}
+            transition={{
+              duration: 2,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+          >
+            {score}
+          </motion.span>
           <span className="text-[10px] text-muted-foreground">/100</span>
         </div>
       </div>
@@ -448,6 +606,20 @@ function CalendarRow({
 
 export default function MacroEconomicsSection() {
   const { t } = useI18n();
+  const [expandedIndicator, setExpandedIndicator] = useState<string | null>(null);
+  const [calendarFilter, setCalendarFilter] = useState<Importance | 'all'>('all');
+
+  const filteredCalendarEvents = calendarEvents.filter((event) => {
+    if (calendarFilter === 'all') return true;
+    return event.importance === calendarFilter;
+  });
+
+  const filterButtons: { key: Importance | 'all'; label: string }[] = [
+    { key: 'all', label: t('macro.calendarFilterAll') },
+    { key: 'high', label: t('macro.calendarFilterHigh') },
+    { key: 'medium', label: t('macro.calendarFilterMedium') },
+    { key: 'low', label: t('macro.calendarFilterLow') },
+  ];
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -501,7 +673,14 @@ export default function MacroEconomicsSection() {
         <TabsContent value="indicators">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {indicators.map((indicator, idx) => (
-              <IndicatorCard key={indicator.key} indicator={indicator} index={idx} t={t} />
+              <IndicatorCard
+                key={indicator.key}
+                indicator={indicator}
+                index={idx}
+                t={t}
+                isExpanded={expandedIndicator === indicator.key}
+                onToggle={() => setExpandedIndicator(expandedIndicator === indicator.key ? null : indicator.key)}
+              />
             ))}
           </div>
 
@@ -700,6 +879,31 @@ export default function MacroEconomicsSection() {
             </Card>
           </motion.div>
 
+          {/* Calendar Filter Buttons */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.3 }}
+            className="flex items-center gap-2 mb-4"
+          >
+            <span className="text-xs text-muted-foreground font-medium mr-1">{t('macro.calImportance')}:</span>
+            {filterButtons.map((btn) => (
+              <Button
+                key={btn.key}
+                variant={calendarFilter === btn.key ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setCalendarFilter(btn.key)}
+                className={
+                  calendarFilter === btn.key
+                    ? 'bg-gold hover:bg-gold/90 text-primary-foreground text-xs h-7 px-2.5 shadow-sm'
+                    : 'border-border/50 text-muted-foreground hover:text-foreground hover:border-gold/40 text-xs h-7 px-2.5'
+                }
+              >
+                {btn.label}
+              </Button>
+            ))}
+          </motion.div>
+
           {/* Events table */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -721,9 +925,17 @@ export default function MacroEconomicsSection() {
                       </tr>
                     </thead>
                     <tbody>
-                      {calendarEvents.map((event, idx) => (
-                        <CalendarRow key={idx} event={event} index={idx} t={t} />
-                      ))}
+                      {filteredCalendarEvents.length > 0 ? (
+                        filteredCalendarEvents.map((event, idx) => (
+                          <CalendarRow key={`${event.event}-${idx}`} event={event} index={idx} t={t} />
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={6} className="py-8 text-center text-sm text-muted-foreground">
+                            No events match the selected filter.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

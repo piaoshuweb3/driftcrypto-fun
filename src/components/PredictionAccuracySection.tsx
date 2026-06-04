@@ -11,6 +11,8 @@ import {
   Clock,
   BarChart3,
   RefreshCw,
+  Flame,
+  Activity,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -65,6 +67,9 @@ const MOCK_PREDICTIONS: PredictionEntry[] = [
   { id: '10', coin: 'Chainlink', symbol: 'LINK', predicted: '+2.0%', actual: '+1.1%', accuracy: 55, date: '2026-02-20', status: 'expired' },
 ];
 
+// Mock accuracy trend data (last 10 predictions)
+const ACCURACY_TREND = [88, 92, 78, 95, 91, 87, 72, 96, 92, 87];
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -108,6 +113,92 @@ function getStatusBadge(status: PredictionEntry['status'], t: (key: string) => s
 }
 
 // ---------------------------------------------------------------------------
+// Sparkline SVG for accuracy trend
+// ---------------------------------------------------------------------------
+
+function AccuracyTrendSparkline({ data, label }: { data: number[]; label: string }) {
+  const width = 280;
+  const height = 60;
+  const padding = 4;
+
+  if (data.length < 2) return null;
+  const min = Math.min(...data) - 5;
+  const max = Math.max(...data) + 5;
+  const range = max - min || 1;
+
+  const points = data.map((val, i) => {
+    const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+    const y = height - padding - ((val - min) / range) * (height - padding * 2);
+    return `${x},${y}`;
+  }).join(' ');
+
+  // 85% threshold line
+  const thresholdY = height - padding - ((85 - min) / range) * (height - padding * 2);
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <Activity className="size-3 text-gold" />
+        <span className="text-[10px] font-semibold text-gold uppercase tracking-wider">
+          {label}
+        </span>
+      </div>
+      <svg width={width} height={height} className="overflow-visible">
+        <defs>
+          <linearGradient id="accuracyGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#d4a843" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#d4a843" stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {/* 85% threshold */}
+        <line
+          x1={padding}
+          y1={thresholdY}
+          x2={width - padding}
+          y2={thresholdY}
+          stroke="#22c55e"
+          strokeWidth="0.5"
+          strokeDasharray="4,4"
+          opacity="0.5"
+        />
+        <text x={width - padding + 2} y={thresholdY + 3} fill="#22c55e" fontSize="8" opacity="0.7">85%</text>
+        {/* Area fill */}
+        <polygon
+          points={`${padding},${height - padding} ${points} ${width - padding},${height - padding}`}
+          fill="url(#accuracyGrad)"
+        />
+        {/* Line */}
+        <polyline
+          points={points}
+          fill="none"
+          stroke="#d4a843"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        {/* Data points */}
+        {data.map((val, i) => {
+          const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+          const y = height - padding - ((val - min) / range) * (height - padding * 2);
+          return (
+            <circle
+              key={i}
+              cx={x}
+              cy={y}
+              r="2"
+              fill={val >= 85 ? '#22c55e' : val >= 70 ? '#d4a017' : '#ef4444'}
+              stroke="currentColor"
+              strokeWidth="0.5"
+              className="text-background"
+            />
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Animation Variants
 // ---------------------------------------------------------------------------
 
@@ -135,6 +226,7 @@ const itemVariants = {
 export default function PredictionAccuracySection() {
   const { t } = useI18n();
   const [timeframe, setTimeframe] = useState('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'pending' | 'expired'>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Filter predictions based on timeframe
@@ -143,26 +235,33 @@ export default function PredictionAccuracySection() {
     return MOCK_PREDICTIONS.filter((p) => {
       const predDate = new Date(p.date);
       const diffDays = Math.floor((now.getTime() - predDate.getTime()) / (1000 * 60 * 60 * 24));
-      switch (timeframe) {
-        case '7d': return diffDays <= 7;
-        case '30d': return diffDays <= 30;
-        case '90d': return diffDays <= 90;
-        default: return true;
-      }
+      const timeOk = timeframe === 'all' || diffDays <= parseInt(timeframe);
+      const statusOk = statusFilter === 'all' || p.status === statusFilter;
+      return timeOk && statusOk;
     });
-  }, [timeframe]);
+  }, [timeframe, statusFilter]);
 
   // Compute stats from filtered data
   const stats = useMemo(() => {
     if (filteredPredictions.length === 0) {
-      return { avgAccuracy: 0, bestPrediction: '—', totalTracked: 0 };
+      return { avgAccuracy: 0, bestPrediction: '—', totalTracked: 0, currentStreak: 0 };
     }
     const avgAccuracy = filteredPredictions.reduce((sum, p) => sum + p.accuracy, 0) / filteredPredictions.length;
     const best = filteredPredictions.reduce((a, b) => (a.accuracy > b.accuracy ? a : b));
+
+    // Calculate current streak of ≥85% accuracy predictions (from most recent)
+    const sorted = [...filteredPredictions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    let streak = 0;
+    for (const p of sorted) {
+      if (p.accuracy >= 85) streak++;
+      else break;
+    }
+
     return {
       avgAccuracy: Math.round(avgAccuracy * 10) / 10,
       bestPrediction: `${best.symbol} ${best.actual}`,
       totalTracked: filteredPredictions.length,
+      currentStreak: streak,
     };
   }, [filteredPredictions]);
 
@@ -184,6 +283,14 @@ export default function PredictionAccuracySection() {
     setIsRefreshing(true);
     setTimeout(() => setIsRefreshing(false), 1200);
   };
+
+  // Status filter tabs
+  const statusTabs: { key: 'all' | 'verified' | 'pending' | 'expired'; label: string; icon: typeof CheckCircle2 }[] = [
+    { key: 'all', label: t('predictionAccuracy.categoryAll'), icon: BarChart3 },
+    { key: 'verified', label: t('predictionAccuracy.verified'), icon: CheckCircle2 },
+    { key: 'pending', label: t('predictionAccuracy.pending'), icon: Clock },
+    { key: 'expired', label: t('predictionAccuracy.expired'), icon: AlertTriangle },
+  ];
 
   return (
     <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -213,9 +320,9 @@ export default function PredictionAccuracySection() {
             </SelectTrigger>
             <SelectContent className="bg-popover border-border/50">
               <SelectItem value="all">{t('predictionAccuracy.allTime')}</SelectItem>
-              <SelectItem value="7d">{t('predictionAccuracy.last7Days')}</SelectItem>
-              <SelectItem value="30d">{t('predictionAccuracy.last30Days')}</SelectItem>
-              <SelectItem value="90d">{t('predictionAccuracy.last90Days')}</SelectItem>
+              <SelectItem value="7">{t('predictionAccuracy.last7Days')}</SelectItem>
+              <SelectItem value="30">{t('predictionAccuracy.last30Days')}</SelectItem>
+              <SelectItem value="90">{t('predictionAccuracy.last90Days')}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -233,12 +340,12 @@ export default function PredictionAccuracySection() {
         </div>
       </motion.div>
 
-      {/* Summary Stats */}
+      {/* Summary Stats - now 4 cards */}
       <motion.div
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       >
         {/* Average Accuracy */}
         <motion.div variants={itemVariants}>
@@ -305,9 +412,27 @@ export default function PredictionAccuracySection() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Current Streak (NEW) */}
+        <motion.div variants={itemVariants}>
+          <Card className="bg-card border-border/50 hover:border-border transition-colors">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <div className="size-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                  <Flame className="size-4 text-amber-500" />
+                </div>
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+                  {t('predictionAccuracy.currentStreak')}
+                </span>
+              </div>
+              <p className="text-2xl font-bold text-amber-500">{stats.currentStreak}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('predictionAccuracy.streakDescription')}</p>
+            </CardContent>
+          </Card>
+        </motion.div>
       </motion.div>
 
-      {/* Accuracy Breakdown */}
+      {/* Accuracy Breakdown + Trend */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
@@ -359,6 +484,11 @@ export default function PredictionAccuracySection() {
                 </div>
               </motion.div>
             ))}
+
+            {/* Accuracy Trend Sparkline */}
+            <div className="pt-3 border-t border-border/30">
+              <AccuracyTrendSparkline data={ACCURACY_TREND} label={t('predictionAccuracy.accuracyTrend')} />
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -371,10 +501,36 @@ export default function PredictionAccuracySection() {
       >
         <Card className="bg-card border-border/50">
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <Clock className="size-4 text-gold" />
-              {t('predictionAccuracy.predictionHistory')}
-            </CardTitle>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                <Clock className="size-4 text-gold" />
+                {t('predictionAccuracy.predictionHistory')}
+              </CardTitle>
+
+              {/* Category filter tabs */}
+              <div className="flex items-center gap-1.5">
+                {statusTabs.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = statusFilter === tab.key;
+                  return (
+                    <Button
+                      key={tab.key}
+                      variant={isActive ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setStatusFilter(tab.key)}
+                      className={
+                        isActive
+                          ? 'bg-gold/15 text-gold hover:bg-gold/25 border-gold/30 text-xs h-7 px-2.5'
+                          : 'border-border/50 text-muted-foreground hover:text-foreground hover:border-gold/40 text-xs h-7 px-2.5'
+                      }
+                    >
+                      <Icon className="size-3 mr-1" />
+                      {tab.label}
+                    </Button>
+                  );
+                })}
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="pb-4">
             <div className="max-h-[460px] overflow-y-auto custom-scrollbar pr-1">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, BarChart3, PieChart, Activity } from 'lucide-react';
+import { TrendingUp, BarChart3, PieChart, Activity, ArrowUpRight, ArrowDownRight, Percent } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import Header from '@/components/Header';
@@ -236,6 +236,9 @@ function MarketSection() {
     staleTime: 30_000,
   });
 
+  const marketCapChange = data?.marketCapChange24h ?? 0;
+  const isMarketTrendingUp = marketCapChange >= 0;
+
   const stats = data
     ? [
         {
@@ -244,6 +247,19 @@ function MarketSection() {
           icon: TrendingUp,
           iconBg: 'bg-bullish/10',
           iconColor: 'text-bullish',
+          trend: isMarketTrendingUp ? 'up' as const : 'down' as const,
+          trendValue: marketCapChange,
+          showTrend: true,
+        },
+        {
+          title: t('hero.marketCapChange24h'),
+          value: `${marketCapChange >= 0 ? '+' : ''}${marketCapChange.toFixed(2)}%`,
+          icon: Percent,
+          iconBg: marketCapChange >= 0 ? 'bg-bullish/10' : 'bg-bearish/10',
+          iconColor: marketCapChange >= 0 ? 'text-bullish' : 'text-bearish',
+          trend: marketCapChange >= 0 ? 'up' as const : 'down' as const,
+          trendValue: marketCapChange,
+          showTrend: false,
         },
         {
           title: t('hero.volume24h'),
@@ -251,6 +267,9 @@ function MarketSection() {
           icon: BarChart3,
           iconBg: 'bg-gold/10',
           iconColor: 'text-gold',
+          trend: 'up' as const,
+          trendValue: 0,
+          showTrend: false,
         },
         {
           title: t('hero.btcDominance'),
@@ -258,6 +277,9 @@ function MarketSection() {
           icon: PieChart,
           iconBg: 'bg-chart-3/10',
           iconColor: 'text-chart-3',
+          trend: 'up' as const,
+          trendValue: 0,
+          showTrend: false,
         },
         {
           title: t('hero.activeCryptos'),
@@ -265,6 +287,9 @@ function MarketSection() {
           icon: Activity,
           iconBg: 'bg-sky-500/10',
           iconColor: 'text-sky-500',
+          trend: 'up' as const,
+          trendValue: 0,
+          showTrend: false,
         },
       ]
     : [];
@@ -273,8 +298,8 @@ function MarketSection() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
       {/* Global Market Stats Bar */}
       {isLoading ? (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => (
             <Card key={i} className="bg-card border-border/50">
               <CardContent className="p-4">
                 <Skeleton className="h-3 w-20 mb-2" />
@@ -284,7 +309,7 @@ function MarketSection() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           {stats.map((stat) => {
             const Icon = stat.icon;
             return (
@@ -296,7 +321,21 @@ function MarketSection() {
                       <Icon className={`size-3.5 ${stat.iconColor}`} />
                     </div>
                   </div>
-                  <span className="text-lg sm:text-xl font-bold text-foreground tracking-tight">{stat.value}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg sm:text-xl font-bold text-foreground tracking-tight">{stat.value}</span>
+                    {stat.showTrend && (
+                      <span className={`flex items-center gap-0.5 text-xs font-semibold ${
+                        stat.trend === 'up' ? 'text-bullish' : 'text-bearish'
+                      }`}>
+                        {stat.trend === 'up' ? (
+                          <ArrowUpRight className="size-3.5" />
+                        ) : (
+                          <ArrowDownRight className="size-3.5" />
+                        )}
+                        {Math.abs(stat.trendValue).toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             );

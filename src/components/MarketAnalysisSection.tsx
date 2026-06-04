@@ -14,11 +14,17 @@ import {
   Loader2,
   ArrowUpRight,
   ArrowDownRight,
+  ChevronDown,
+  Clock,
+  Activity,
+  ShieldCheck,
+  Zap,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import {
   Select,
   SelectContent,
@@ -361,22 +367,44 @@ function AnalysisCard({ result, t }: { result: AnalysisResult; t: (key: string) 
 // Empty State
 // ---------------------------------------------------------------------------
 
-function EmptyState({ t }: { t: (key: string) => string }) {
+function EmptyState({
+  t,
+  onGenerate,
+  isDisabled,
+}: {
+  t: (key: string) => string;
+  onGenerate: () => void;
+  isDisabled: boolean;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="text-center py-20"
+      className="text-center py-16"
     >
-      <div className="inline-flex items-center justify-center size-16 rounded-2xl bg-gold/10 mb-5">
-        <BarChartBig className="size-8 text-gold" />
+      <div className="relative inline-block mb-6">
+        <div className="inline-flex items-center justify-center size-20 rounded-2xl bg-gold/10">
+          <BarChartBig className="size-10 text-gold" />
+        </div>
+        <div className="absolute -top-1 -right-1 size-6 rounded-full bg-gold/20 flex items-center justify-center">
+          <Sparkles className="size-3 text-gold" />
+        </div>
       </div>
-      <h3 className="text-lg font-semibold text-foreground mb-2">
+      <h3 className="text-xl font-semibold text-foreground mb-3">
         {t('marketAnalysis.emptyTitle')}
       </h3>
-      <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
+      <p className="text-sm text-muted-foreground max-w-md mx-auto leading-relaxed mb-8">
         {t('marketAnalysis.emptyDesc')}
       </p>
+      <Button
+        onClick={onGenerate}
+        disabled={isDisabled}
+        size="lg"
+        className="bg-gold hover:bg-gold/90 text-primary-foreground shadow-lg shadow-gold/25 transition-all duration-200 disabled:opacity-50 px-8 h-12 text-base"
+      >
+        <Sparkles className="size-5 mr-2" />
+        {t('marketAnalysis.generate')}
+      </Button>
     </motion.div>
   );
 }
@@ -403,6 +431,8 @@ export default function MarketAnalysisSection() {
   const [analysisResults, setAnalysisResults] = useState<AnalysisResult[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [rawAnalysisText, setRawAnalysisText] = useState<string | null>(null);
+  const [analysisTimestamp, setAnalysisTimestamp] = useState<number | null>(null);
+  const [aiInsightOpen, setAiInsightOpen] = useState(false);
 
   // -----------------------------------------------------------------------
   // Fetch market data
@@ -464,6 +494,31 @@ export default function MarketAnalysisSection() {
     return analysisResults.filter((r) => r.trend === filterTab);
   }, [analysisResults, filterTab]);
 
+  // Market summary computed values (for "All Market" view)
+  const marketSummary = useMemo(() => {
+    if (analysisResults.length === 0) return null;
+    const bullCount = analysisResults.filter((r) => r.trend === 'bullish').length;
+    const bearCount = analysisResults.filter((r) => r.trend === 'bearish').length;
+    const neutralCount = analysisResults.filter((r) => r.trend === 'neutral').length;
+    const avgConfidence = Math.round(
+      analysisResults.reduce((sum, r) => sum + r.confidence, 0) / analysisResults.length,
+    );
+    const overallTrend: TrendDirection =
+      bullCount > bearCount && bullCount > neutralCount
+        ? 'bullish'
+        : bearCount > bullCount && bearCount > neutralCount
+          ? 'bearish'
+          : 'neutral';
+    const highRiskCount = analysisResults.filter((r) => r.riskLevel === 'high').length;
+    const marketHealth: 'healthy' | 'caution' | 'stressed' =
+      highRiskCount > analysisResults.length * 0.5
+        ? 'stressed'
+        : highRiskCount > analysisResults.length * 0.3
+          ? 'caution'
+          : 'healthy';
+    return { bullCount, bearCount, neutralCount, avgConfidence, overallTrend, marketHealth };
+  }, [analysisResults]);
+
   // -----------------------------------------------------------------------
   // Generate analysis
   // -----------------------------------------------------------------------
@@ -471,6 +526,7 @@ export default function MarketAnalysisSection() {
   const handleGenerateAnalysis = useCallback(async () => {
     setIsGenerating(true);
     setRawAnalysisText(null);
+    setAnalysisTimestamp(null);
 
     const coinLabel =
       selectedCoin === 'all'
@@ -521,6 +577,7 @@ Format your response as a structured analysis. Be specific with price levels and
       const data = await res.json();
       const aiText = data.message || '';
       setRawAnalysisText(aiText);
+      setAnalysisTimestamp(Date.now());
 
       // Parse AI response into structured analysis results
       const parsedResults = parseAIResponse(aiText, coins, selectedCoin);
@@ -930,6 +987,175 @@ Format your response as a structured analysis. Be specific with price levels and
         </motion.div>
       )}
 
+      {/* Overall Market Summary Card + AI Insight Panel + Timestamp */}
+      {analysisResults.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.1 }}
+          className="mb-6 space-y-4"
+        >
+          {/* Overall Market Summary Card (only when "All Market" selected) */}
+          {selectedCoin === 'all' && marketSummary && (
+            <Card className="bg-card border-gold/20 overflow-hidden">
+              <div className="absolute inset-0 opacity-50 pointer-events-none" style={{ background: 'radial-gradient(ellipse at top left, rgba(245,158,11,0.04) 0%, transparent 60%)' }} aria-hidden="true" />
+              <CardContent className="relative p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="size-8 rounded-lg bg-gold/10 flex items-center justify-center">
+                    <Activity className="size-4 text-gold" />
+                  </div>
+                  <h3 className="text-sm font-semibold text-foreground">
+                    {t('marketAnalysis.overallMarket')}
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {/* Overall Trend Direction */}
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      {t('marketAnalysis.trendDirection')}
+                    </span>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs font-medium flex items-center gap-1 ${getTrendBadgeClasses(marketSummary.overallTrend)}`}
+                      >
+                        {getTrendIcon(marketSummary.overallTrend)}
+                        {t(`marketAnalysis.${marketSummary.overallTrend}`)}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">
+                        ({marketSummary.bullCount}/{marketSummary.bearCount}/{marketSummary.neutralCount})
+                      </span>
+                    </div>
+                  </div>
+                  {/* Average Confidence */}
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      {t('marketAnalysis.averageConfidence')}
+                    </span>
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <span className="text-lg font-bold text-foreground">{marketSummary.avgConfidence}%</span>
+                      <div className="flex-1 h-2 rounded-full bg-white/5 overflow-hidden">
+                        <motion.div
+                          className={`h-full rounded-full ${
+                            marketSummary.overallTrend === 'bullish'
+                              ? 'bg-bullish'
+                              : marketSummary.overallTrend === 'bearish'
+                                ? 'bg-bearish'
+                                : 'bg-gold'
+                          }`}
+                          initial={{ width: 0 }}
+                          animate={{ width: `${marketSummary.avgConfidence}%` }}
+                          transition={{ duration: 0.8, ease: 'easeOut', delay: 0.3 }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Market Health */}
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                      {t('marketAnalysis.marketHealth')}
+                    </span>
+                    <div className="flex items-center gap-2 mt-1.5">
+                      {marketSummary.marketHealth === 'healthy' ? (
+                        <ShieldCheck className="size-5 text-bullish" />
+                      ) : marketSummary.marketHealth === 'caution' ? (
+                        <Zap className="size-5 text-gold" />
+                      ) : (
+                        <Activity className="size-5 text-bearish" />
+                      )}
+                      <span className={`text-sm font-semibold ${
+                        marketSummary.marketHealth === 'healthy'
+                          ? 'text-bullish'
+                          : marketSummary.marketHealth === 'caution'
+                            ? 'text-gold'
+                            : 'text-bearish'
+                      }`}>
+                        {t(`marketAnalysis.${marketSummary.marketHealth}`)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Analysis Timestamp + Regenerate Button */}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              {analysisTimestamp && (
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <Clock className="size-3.5" />
+                  <span>{t('marketAnalysis.lastUpdated')}:</span>
+                  <span className="font-medium text-foreground/80">
+                    {new Date(analysisTimestamp).toLocaleTimeString(locale === 'zh' ? 'zh-CN' : 'en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      second: '2-digit',
+                    })}
+                  </span>
+                </div>
+              )}
+              {selectedCoin !== 'all' && (
+                <span className="text-xs text-muted-foreground">
+                  {t('marketAnalysis.analysisFor')}:{' '}
+                  <span className="font-medium text-foreground/80">
+                    {coins.find((c) => c.coinId === selectedCoin)?.name ?? selectedCoin}
+                  </span>
+                </span>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleGenerateAnalysis}
+              disabled={isGenerating}
+              className="h-8 text-xs border-gold/30 text-gold hover:bg-gold/10 hover:text-gold transition-colors"
+            >
+              {isGenerating ? (
+                <Loader2 className="size-3.5 animate-spin mr-1.5" />
+              ) : (
+                <RefreshCw className="size-3.5 mr-1.5" />
+              )}
+              {t('marketAnalysis.regenerate')}
+            </Button>
+          </div>
+
+          {/* AI Insight Panel (Collapsible) */}
+          {rawAnalysisText && (
+            <Collapsible open={aiInsightOpen} onOpenChange={setAiInsightOpen}>
+              <Card className="bg-card border-border/50">
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="pb-0 cursor-pointer hover:bg-white/[0.01] transition-colors rounded-t-lg">
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
+                        <Sparkles className="size-4 text-gold" />
+                        {t('marketAnalysis.aiAnalysisResult')}
+                      </CardTitle>
+                      <motion.div
+                        animate={{ rotate: aiInsightOpen ? 180 : 0 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ChevronDown className="size-4 text-muted-foreground" />
+                      </motion.div>
+                    </div>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent className="pt-3">
+                    <div className="p-4 rounded-xl bg-background/50 border border-border/30 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap max-h-96 overflow-y-auto">
+                      {rawAnalysisText}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-3 italic">
+                      {t('marketAnalysis.disclaimer')}
+                    </p>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          )}
+        </motion.div>
+      )}
+
       {/* Results Area */}
       <AnimatePresence mode="wait">
         {isGenerating ? (
@@ -948,7 +1174,7 @@ Format your response as a structured analysis. Be specific with price levels and
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
           >
-            <EmptyState t={t} />
+            <EmptyState t={t} onGenerate={handleGenerateAnalysis} isDisabled={isGenerating || isLoadingPrices} />
           </motion.div>
         ) : filteredResults.length === 0 ? (
           <motion.div
@@ -1072,33 +1298,6 @@ Format your response as a structured analysis. Be specific with price levels and
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Raw AI Analysis Text */}
-      {rawAnalysisText && analysisResults.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-          className="mt-8"
-        >
-          <Card className="bg-card border-border/50">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
-                <Sparkles className="size-4 text-gold" />
-                {t('marketAnalysis.aiInsight')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <div className="p-4 rounded-xl bg-background/50 border border-border/30 text-sm text-foreground/90 leading-relaxed whitespace-pre-wrap max-h-80 overflow-y-auto">
-                {rawAnalysisText}
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-3 italic">
-                {t('marketAnalysis.disclaimer')}
-              </p>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
     </div>
   );
 }

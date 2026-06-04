@@ -15,6 +15,9 @@ import {
   AlertTriangle,
   Clock,
   BarChart3,
+  LayoutGrid,
+  Table as TableIcon,
+  Trophy,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,6 +25,14 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useI18n } from '@/lib/i18n';
 
 // ---------------------------------------------------------------------------
@@ -209,27 +220,53 @@ const cardVariants = {
 };
 
 // ---------------------------------------------------------------------------
-// Result Card Component
+// Result Card Component (Enhanced: winner badge)
 // ---------------------------------------------------------------------------
 
 function ResultCard({ result, t }: { result: BatchResult; t: (key: string) => string }) {
+  const isWinner = result.overallRank === 1;
+
   return (
     <motion.div variants={cardVariants}>
-      <Card className="bg-card border-border/50 hover:border-border transition-colors overflow-hidden h-full">
+      <Card className={`bg-card border-border/50 hover:border-border transition-colors overflow-hidden h-full ${isWinner ? 'ring-1 ring-gold/30' : ''}`}>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-semibold flex items-center gap-2 text-foreground">
-              <div className="size-7 rounded-lg bg-gold/10 flex items-center justify-center">
+              <div className="size-7 rounded-lg bg-gold/10 flex items-center justify-center relative">
                 <span className="text-xs text-gold font-bold">{result.symbol.charAt(0)}</span>
+                {isWinner && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ delay: 0.4, type: 'spring', stiffness: 300 }}
+                    className="absolute -top-1.5 -right-1.5"
+                  >
+                    <Trophy className="size-4 text-gold" />
+                  </motion.div>
+                )}
               </div>
               <div>
                 <span className="text-foreground">{result.name}</span>
                 <span className="text-muted-foreground text-xs ml-1">({result.symbol})</span>
               </div>
             </CardTitle>
-            <Badge variant="outline" className={`text-[10px] px-2 font-bold ${getRankBadgeClass(result.overallRank)}`}>
-              #{result.overallRank}
-            </Badge>
+            <div className="flex items-center gap-1.5">
+              {isWinner && (
+                <motion.div
+                  initial={{ opacity: 0, x: 8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <Badge className="bg-gold/15 border border-gold/40 text-gold text-[9px] px-1.5 py-0">
+                    <Trophy className="size-2.5 mr-0.5" />
+                    {t('batchAnalysis.winnerBadge')}
+                  </Badge>
+                </motion.div>
+              )}
+              <Badge variant="outline" className={`text-[10px] px-2 font-bold ${getRankBadgeClass(result.overallRank)}`}>
+                #{result.overallRank}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="pb-4 space-y-3">
@@ -311,6 +348,105 @@ function ResultCard({ result, t }: { result: BatchResult; t: (key: string) => st
 }
 
 // ---------------------------------------------------------------------------
+// Comparison Table View (NEW)
+// ---------------------------------------------------------------------------
+
+function ComparisonTableView({ results, t }: { results: BatchResult[]; t: (key: string) => string }) {
+  const metrics = results.length > 0 ? results[0].keyMetrics.map((m) => m.label) : [];
+
+  return (
+    <Card className="bg-card border-border/50">
+      <CardContent className="p-0">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border/30 hover:bg-transparent">
+                <TableHead className="text-gold text-xs font-semibold">{t('batchAnalysis.metric')}</TableHead>
+                {results.map((r) => (
+                  <TableHead key={r.symbol} className="text-gold text-xs font-semibold text-center min-w-[120px]">
+                    <div className="flex flex-col items-center gap-0.5">
+                      <div className="flex items-center gap-1">
+                        <span className="font-bold">{r.symbol}</span>
+                        {r.overallRank === 1 && (
+                          <Trophy className="size-3 text-gold" />
+                        )}
+                      </div>
+                      <Badge variant="outline" className={`text-[9px] px-1.5 py-0 ${getRankBadgeClass(r.overallRank)}`}>
+                        #{r.overallRank}
+                      </Badge>
+                    </div>
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {/* Price row */}
+              <TableRow className="border-border/20 hover:bg-accent/30">
+                <TableCell className="text-xs text-muted-foreground font-medium">Price</TableCell>
+                {results.map((r) => (
+                  <TableCell key={r.symbol} className="text-center">
+                    <span className="text-sm font-bold text-foreground">{formatPrice(r.price)}</span>
+                  </TableCell>
+                ))}
+              </TableRow>
+              {/* 24h Change row */}
+              <TableRow className="border-border/20 hover:bg-accent/30">
+                <TableCell className="text-xs text-muted-foreground font-medium">24h Change</TableCell>
+                {results.map((r) => (
+                  <TableCell key={r.symbol} className="text-center">
+                    <span className={`text-sm font-semibold flex items-center justify-center gap-0.5 ${r.change24h >= 0 ? 'text-bullish' : 'text-bearish'}`}>
+                      {r.change24h >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+                      {r.change24h >= 0 ? '+' : ''}{r.change24h.toFixed(2)}%
+                    </span>
+                  </TableCell>
+                ))}
+              </TableRow>
+              {/* Verdict row */}
+              <TableRow className="border-border/20 hover:bg-accent/30">
+                <TableCell className="text-xs text-muted-foreground font-medium">{t('batchAnalysis.aiVerdict')}</TableCell>
+                {results.map((r) => (
+                  <TableCell key={r.symbol} className="text-center">
+                    <Badge variant="outline" className={`text-[10px] px-2 ${getVerdictBg(r.verdict)}`}>
+                      {getVerdictIcon(r.verdict)}
+                      <span className="ml-1">{r.verdict}</span>
+                    </Badge>
+                  </TableCell>
+                ))}
+              </TableRow>
+              {/* Confidence row */}
+              <TableRow className="border-border/20 hover:bg-accent/30">
+                <TableCell className="text-xs text-muted-foreground font-medium">{t('batchAnalysis.confidence')}</TableCell>
+                {results.map((r) => (
+                  <TableCell key={r.symbol} className="text-center">
+                    <span className="text-sm font-semibold" style={{ color: getConfidenceColor(r.confidence) }}>
+                      {r.confidence}%
+                    </span>
+                  </TableCell>
+                ))}
+              </TableRow>
+              {/* Key metrics rows */}
+              {metrics.map((metric) => (
+                <TableRow key={metric} className="border-border/20 hover:bg-accent/30">
+                  <TableCell className="text-xs text-muted-foreground font-medium">{metric}</TableCell>
+                  {results.map((r) => {
+                    const m = r.keyMetrics.find((km) => km.label === metric);
+                    return (
+                      <TableCell key={r.symbol} className="text-center">
+                        <span className="text-sm text-foreground">{m?.value ?? '—'}</span>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main Component
 // ---------------------------------------------------------------------------
 
@@ -329,6 +465,9 @@ export default function BatchAnalysisSection() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [results, setResults] = useState<BatchResult[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // View mode: 'card' or 'table'
+  const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 
   // Fetch coins on mount
   useEffect(() => {
@@ -738,41 +877,96 @@ export default function BatchAnalysisSection() {
             initial="hidden"
             animate="visible"
           >
-            {/* Overall ranking bar */}
+            {/* Overall ranking bar + view toggle */}
             <motion.div variants={itemVariants} className="mb-4">
               <Card className="bg-card border-border/50">
                 <CardContent className="py-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Target className="size-4 text-gold" />
-                    <span className="text-sm font-semibold text-foreground">{t('batchAnalysis.overallRanking')}</span>
-                  </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    {results.map((r) => (
-                      <div
-                        key={r.symbol}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/50 border border-border/30"
-                      >
-                        <span className="text-xs font-bold text-gold">#{r.overallRank}</span>
-                        <span className="text-xs font-medium text-foreground">{r.symbol}</span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] px-1.5 py-0 ${getVerdictBg(r.verdict)}`}
-                        >
-                          {r.verdict}
-                        </Badge>
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Target className="size-4 text-gold" />
+                        <span className="text-sm font-semibold text-foreground">{t('batchAnalysis.overallRanking')}</span>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-3 flex-wrap">
+                        {results.map((r) => (
+                          <div
+                            key={r.symbol}
+                            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-background/50 border ${r.overallRank === 1 ? 'border-gold/40 ring-1 ring-gold/20' : 'border-border/30'}`}
+                          >
+                            <span className="text-xs font-bold text-gold">#{r.overallRank}</span>
+                            <span className="text-xs font-medium text-foreground">{r.symbol}</span>
+                            <Badge
+                              variant="outline"
+                              className={`text-[9px] px-1.5 py-0 ${getVerdictBg(r.verdict)}`}
+                            >
+                              {r.verdict}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* View toggle */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        variant={viewMode === 'card' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('card')}
+                        className={
+                          viewMode === 'card'
+                            ? 'bg-gold/15 text-gold hover:bg-gold/25 border-gold/30 text-xs h-7 px-2.5'
+                            : 'border-border/50 text-muted-foreground hover:text-foreground hover:border-gold/40 text-xs h-7 px-2.5'
+                        }
+                      >
+                        <LayoutGrid className="size-3 mr-1" />
+                        {t('batchAnalysis.cardView')}
+                      </Button>
+                      <Button
+                        variant={viewMode === 'table' ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewMode('table')}
+                        className={
+                          viewMode === 'table'
+                            ? 'bg-gold/15 text-gold hover:bg-gold/25 border-gold/30 text-xs h-7 px-2.5'
+                            : 'border-border/50 text-muted-foreground hover:text-foreground hover:border-gold/40 text-xs h-7 px-2.5'
+                        }
+                      >
+                        <TableIcon className="size-3 mr-1" />
+                        {t('batchAnalysis.tableView')}
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             </motion.div>
 
-            {/* Side-by-side comparison cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {results.map((result, index) => (
-                <ResultCard key={result.symbol} result={result} t={t} />
-              ))}
-            </div>
+            {/* Results display: Card or Table view */}
+            <AnimatePresence mode="wait">
+              {viewMode === 'card' ? (
+                <motion.div
+                  key="card-view"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25 }}
+                  className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+                >
+                  {results.map((result) => (
+                    <ResultCard key={result.symbol} result={result} t={t} />
+                  ))}
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="table-view"
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -8 }}
+                  transition={{ duration: 0.25 }}
+                >
+                  <ComparisonTableView results={results} t={t} />
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Disclaimer */}
             <motion.div

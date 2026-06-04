@@ -45,6 +45,7 @@ export const translations = {
       btcDominance: 'BTC Dominance',
       activeCryptos: 'Active Cryptos',
       failedToLoad: 'Failed to load market data',
+      marketCapChange24h: '24h MCap Change',
     },
     // Trending Strip
     trending: {
@@ -370,6 +371,30 @@ export const translations = {
       inDays: 'In {n} days',
       tomorrow: 'Tomorrow',
       today: 'Today',
+      // Enhanced: Indicator detail
+      indicatorDetail: 'Detail',
+      indicatorContext: 'Historical Context',
+      indicatorSparkline: '30D Trend',
+      dxyContext: 'DXY has ranged 102-106 over the past 90 days. Current level suggests continued dollar strength.',
+      cpiContext: 'CPI has declined from 3.7% to 3.4% over the past 6 months, signaling disinflation.',
+      goldContext: 'Gold has rallied 12% YTD, driven by central bank buying and geopolitical uncertainty.',
+      sp500Context: 'S&P 500 near all-time highs with strong earnings, but valuation concerns persist.',
+      vixContext: 'VIX below 15 signals market complacency. Historically, low VIX often precedes volatility spikes.',
+      fedRateContext: 'Fed has held rates steady at 5.25% for 4 consecutive meetings. Cuts expected later in 2026.',
+      treasury10yContext: '10Y yield rising toward 4.5%, signaling bond market stress and tighter financial conditions.',
+      // Enhanced: Calendar filter
+      calendarFilterAll: 'All',
+      calendarFilterHigh: 'High',
+      calendarFilterMedium: 'Medium',
+      calendarFilterLow: 'Low',
+      // Enhanced: Correlation tooltip
+      correlationTooltipStrength: 'Correlation Strength',
+      correlationTooltipDirection: 'Direction',
+      correlationTooltipPeriod: 'Period',
+      correlationStrong: 'Strong',
+      correlationModerate: 'Moderate',
+      correlationDirectionPositive: 'Positive (moves together)',
+      correlationDirectionNegative: 'Negative (moves opposite)',
     },
     // Microstructure
     microstructure: {
@@ -396,6 +421,20 @@ export const translations = {
       high: 'High',
       volumeProfile: 'Volume Profile',
       volMcapRatio: 'Vol/MCap Ratio',
+      buyPressure: 'Buy',
+      sellPressure: 'Sell',
+      volume24h: '24h Volume',
+      coinsAnalyzed: 'coins',
+      orderBookDepth: 'Order Book Depth',
+      depthLevels: 'Depth Levels',
+      marketHealth: 'Market Health',
+      healthyLabel: 'Healthy',
+      cautionLabel: 'Caution',
+      stressedLabel: 'Stressed',
+      detailTitle: 'Microstructure Detail',
+      spreadAnalysis: 'Spread Analysis',
+      liquidityAnalysis: 'Liquidity Analysis',
+      orderFlowAnalysis: 'Order Flow Analysis',
     },
     // Correlations
     correlations: {
@@ -472,6 +511,17 @@ export const translations = {
       failedToLoad: 'Failed to load market data',
       aiInsight: 'AI Market Insight',
       disclaimer: 'AI-generated content for reference only. Not financial advice. Always do your own research.',
+      aiAnalysisResult: 'AI Analysis Result',
+      analysisFor: 'Analysis for',
+      regenerate: 'Regenerate',
+      lastUpdated: 'Last updated',
+      overallMarket: 'Overall Market',
+      trendDirection: 'Trend Direction',
+      averageConfidence: 'Avg. Confidence',
+      marketHealth: 'Market Health',
+      healthy: 'Healthy',
+      caution: 'Caution',
+      stressed: 'Stressed',
     },
     // Prediction Accuracy
     predictionAccuracy: {
@@ -505,6 +555,13 @@ export const translations = {
       predictionHistory: 'Prediction History',
       confidence: 'Confidence',
       disclaimer: 'AI-generated predictions for reference only. Not financial advice. Past accuracy does not guarantee future results.',
+      // Enhanced: Category filter
+      categoryAll: 'All',
+      // Enhanced: Current streak
+      currentStreak: 'Current Streak',
+      streakDescription: 'Consecutive ≥85% accuracy',
+      // Enhanced: Accuracy trend
+      accuracyTrend: 'Accuracy Trend',
     },
     // Batch Analysis
     batchAnalysis: {
@@ -523,6 +580,11 @@ export const translations = {
       confidence: 'Confidence',
       aiVerdict: 'AI Verdict',
       disclaimer: 'AI-generated analysis for reference only. Not financial advice.',
+      // Enhanced: View toggle
+      cardView: 'Card View',
+      tableView: 'Table View',
+      winnerBadge: 'Winner',
+      metric: 'Metric',
     },
     // Quick Links (Dashboard)
     quickLinks: {
@@ -591,6 +653,7 @@ export const translations = {
       btcDominance: 'BTC 占比',
       activeCryptos: '活跃币种',
       failedToLoad: '加载市场数据失败',
+      marketCapChange24h: '24h市值变化',
     },
     // Trending Strip
     trending: {
@@ -916,6 +979,30 @@ export const translations = {
       inDays: '{n}天后',
       tomorrow: '明天',
       today: '今天',
+      // 增强功能：指标详情
+      indicatorDetail: '详情',
+      indicatorContext: '历史背景',
+      indicatorSparkline: '30日趋势',
+      dxyContext: 'DXY在过去90天内波动于102-106之间。当前水平表明美元持续走强。',
+      cpiContext: 'CPI在过去6个月从3.7%下降到3.4%，表明通胀正在缓解。',
+      goldContext: '黄金年内上涨12%，受央行购买和地缘政治不确定性推动。',
+      sp500Context: '标普500接近历史高位，盈利强劲，但估值隐忧仍存。',
+      vixContext: 'VIX低于15表明市场自满。历史上，低VIX往往先于波动性飙升。',
+      fedRateContext: '美联储已连续4次会议维持5.25%利率不变。预计2026年晚些时候降息。',
+      treasury10yContext: '10年期收益率上升至4.5%附近，表明债券市场压力和金融条件收紧。',
+      // 增强功能：日历筛选
+      calendarFilterAll: '全部',
+      calendarFilterHigh: '高',
+      calendarFilterMedium: '中',
+      calendarFilterLow: '低',
+      // 增强功能：相关性提示
+      correlationTooltipStrength: '相关强度',
+      correlationTooltipDirection: '方向',
+      correlationTooltipPeriod: '周期',
+      correlationStrong: '强',
+      correlationModerate: '中等',
+      correlationDirectionPositive: '正向（同向运动）',
+      correlationDirectionNegative: '负向（反向运动）',
     },
     // Microstructure
     microstructure: {
@@ -942,6 +1029,20 @@ export const translations = {
       high: '较高',
       volumeProfile: '成交量概况',
       volMcapRatio: '成交量/市值比',
+      buyPressure: '买',
+      sellPressure: '卖',
+      volume24h: '24小时成交量',
+      coinsAnalyzed: '币种',
+      orderBookDepth: '订单簿深度',
+      depthLevels: '深度级别',
+      marketHealth: '市场健康度',
+      healthyLabel: '健康',
+      cautionLabel: '注意',
+      stressedLabel: '紧张',
+      detailTitle: '微观结构详情',
+      spreadAnalysis: '价差分析',
+      liquidityAnalysis: '流动性分析',
+      orderFlowAnalysis: '订单流分析',
     },
     // Correlations
     correlations: {
@@ -1018,6 +1119,17 @@ export const translations = {
       failedToLoad: '加载市场数据失败',
       aiInsight: 'AI 市场洞察',
       disclaimer: 'AI 生成内容仅供参考，不构成投资建议。请自行研究。',
+      aiAnalysisResult: 'AI 分析结果',
+      analysisFor: '分析对象',
+      regenerate: '重新生成',
+      lastUpdated: '上次更新',
+      overallMarket: '整体市场',
+      trendDirection: '趋势方向',
+      averageConfidence: '平均置信度',
+      marketHealth: '市场健康度',
+      healthy: '健康',
+      caution: '注意',
+      stressed: '紧张',
     },
     // Prediction Accuracy
     predictionAccuracy: {
@@ -1051,6 +1163,13 @@ export const translations = {
       predictionHistory: '预测历史',
       confidence: '置信度',
       disclaimer: 'AI 生成的预测仅供参考，不构成投资建议。过往准确率不保证未来表现。',
+      // 增强功能：分类筛选
+      categoryAll: '全部',
+      // 增强功能：连续记录
+      currentStreak: '当前连胜',
+      streakDescription: '连续≥85%准确率',
+      // 增强功能：准确率趋势
+      accuracyTrend: '准确率趋势',
     },
     // Batch Analysis
     batchAnalysis: {
@@ -1069,6 +1188,11 @@ export const translations = {
       confidence: '置信度',
       aiVerdict: 'AI 判定',
       disclaimer: 'AI 生成的分析仅供参考，不构成投资建议。',
+      // 增强功能：视图切换
+      cardView: '卡片视图',
+      tableView: '表格视图',
+      winnerBadge: '胜出',
+      metric: '指标',
     },
     // Quick Links (Dashboard)
     quickLinks: {
