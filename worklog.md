@@ -542,3 +542,41 @@ Implemented complete bilingual (CN/EN) i18n system, language switcher, "More" dr
 ✅ Lint passed with no errors
 ✅ Dev server running cleanly
 
+
+---
+
+## Task ID: 5 — Rebrand CoinRichAI → driftcrypto + Investment Disclaimer + Final Verification
+
+**Agent**: main
+**Date**: 2026-06-04
+
+### Summary
+Completed full rebranding from "CoinRichAI" to "driftcrypto"/"driftcrypto.fun", added comprehensive Investment Disclaimer to footer, and verified all features via browser testing.
+
+### What was done
+
+#### 1. Full Rebrand (CoinRichAI → driftcrypto)
+- **translations.ts**: Brand name → "driftcrypto", copyright → "© 2026 driftcrypto.fun", AI assistant name → "DriftCrypto"
+- **layout.tsx**: Page title → "driftcrypto - AI Powered Cryptocurrency Insights", authors → "driftcrypto", favicon → "/driftcrypto-logo.png"
+- **Header.tsx**: Logo alt text → "driftcrypto Logo", brand text → "driftcrypto", logo src → "/driftcrypto-logo.png"
+- **globals.css**: Comment → "Custom colors for driftcrypto"
+- **api/mcp/manifest/route.ts**: Server name → "driftcrypto MCP Server"
+- **api/ai/chat/route.ts**: System prompts → "DriftCrypto" (both EN/ZH)
+- **i18n.tsx**: localStorage key → "driftcrypto-locale"
+- **Logo file**: Copied coinrichai-logo.png → driftcrypto-logo.png
+
+#### 2. Investment Disclaimer (Footer)
+- **English**: "Content available on this site is for informational and educational purposes only. Not to be construed as investment or financial advice. Our site or organization is NOT to be held liable for profit or loss gained from any investments or transactions. Please conduct your own research and consult with qualified financial advisors before making any investment decisions."
+- **Chinese**: "本站内容仅供信息参考和教育用途，不应被理解为投资或财务建议。本站或组织对任何投资或交易产生的利润或损失不承担任何责任。请在做出任何投资决定前自行研究并咨询合格的财务顾问。"
+- Added `disclaimerTitle` translation key: "Investment Disclaimer" / "投资免责声明"
+- Footer redesigned with prominent disclaimer box (ShieldAlert icon, bearish/red border, rounded card)
+
+#### 3. Browser Verification
+✅ EN mode: "driftcrypto" branding, all labels in English, Investment Disclaimer footer
+✅ ZH mode: "driftcrypto" branding, all labels in Chinese, 投资免责声明 footer
+✅ Language switcher: Instant EN↔ZH toggle
+✅ Mobile responsive: Hamburger menu, driftcrypto branding
+✅ Zero console errors
+✅ Zero lint errors
+✅ All "CoinRichAI" references removed from source code
+

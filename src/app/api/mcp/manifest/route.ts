@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
 
 const MCP_MANIFEST = {
-  name: 'CoinRichAI MCP Server',
+  name: 'driftcrypto MCP Server',
   version: '1.0.0',
   description:
-    'AI-powered cryptocurrency news and market data MCP server',
+    'AI-powered cryptocurrency news and market data MCP server by driftcrypto',
   tools: [
     {
       name: 'search_news',

@@ -41,7 +41,7 @@ function resolve(obj: Record<string, unknown>, path: string): string {
 // localStorage helpers
 // ---------------------------------------------------------------------------
 
-const STORAGE_KEY = 'coinrichai-locale';
+const STORAGE_KEY = 'driftcrypto-locale';
 
 function readStoredLocale(): Locale {
   if (typeof window === 'undefined') return 'en';

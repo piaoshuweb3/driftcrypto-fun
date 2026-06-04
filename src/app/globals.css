@@ -42,7 +42,7 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
-  /* Custom colors for CoinRichAI */
+  /* Custom colors for driftcrypto */
   --color-bullish: var(--bullish);
   --color-bearish: var(--bearish);
   --color-neutral: var(--neutral);

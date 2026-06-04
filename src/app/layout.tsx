@@ -15,15 +15,15 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CoinRichAI - AI Powered Cryptocurrency Insights",
+  title: "driftcrypto - AI Powered Cryptocurrency Insights",
   description: "AI-driven cryptocurrency news aggregation, market data, and intelligent analysis. Real-time crypto prices, AI commentary, and Fear & Greed Index.",
   keywords: ["cryptocurrency", "AI", "crypto news", "bitcoin", "ethereum", "market data", "fear greed index"],
-  authors: [{ name: "CoinRichAI" }],
+  authors: [{ name: "driftcrypto" }],
   icons: {
-    icon: "/coinrichai-logo.png",
+    icon: "/driftcrypto-logo.png",
   },
   openGraph: {
-    title: "CoinRichAI - AI Powered Cryptocurrency Insights",
+    title: "driftcrypto - AI Powered Cryptocurrency Insights",
     description: "AI-driven cryptocurrency news aggregation and market intelligence",
     type: "website",
   },

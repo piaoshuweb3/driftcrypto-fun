@@ -1,5 +1,5 @@
 // ==========================================================================
-// CoinRichAI Bilingual Translations (CN/EN)
+// driftcrypto Bilingual Translations (CN/EN)
 // ==========================================================================
 
 export type Locale = 'en' | 'zh';
@@ -113,13 +113,14 @@ export const translations = {
       placeholder: 'Ask about crypto markets, prices, news...',
       send: 'Send',
       thinking: 'Thinking...',
-      welcomeMessage: 'Hello! I\'m CoinRichAI assistant. Ask me anything about cryptocurrency markets, prices, news, or technical analysis.',
+      welcomeMessage: 'Hello! I\'m DriftCrypto assistant. Ask me anything about cryptocurrency markets, prices, news, or technical analysis.',
     },
     // Footer
     footer: {
-      disclaimer: 'Content on this site is for informational purposes only. Not financial advice. Always DYOR.',
+      disclaimerTitle: 'Investment Disclaimer',
+      disclaimer: 'Content available on this site is for informational and educational purposes only. Not to be construed as investment or financial advice. Our site or organization is NOT to be held liable for profit or loss gained from any investments or transactions. Please conduct your own research and consult with qualified financial advisors before making any investment decisions.',
       apiDocs: 'API Docs',
-      copyright: '© 2026 CoinRichAI. All rights reserved.',
+      copyright: '© 2026 driftcrypto.fun. All rights reserved.',
     },
     // Common
     common: {
@@ -240,13 +241,14 @@ export const translations = {
       placeholder: '询问加密市场、价格、新闻...',
       send: '发送',
       thinking: '思考中...',
-      welcomeMessage: '你好！我是 CoinRichAI 助手。你可以问我任何关于加密货币市场、价格、新闻或技术分析的问题。',
+      welcomeMessage: '你好！我是 DriftCrypto 助手。你可以问我任何关于加密货币市场、价格、新闻或技术分析的问题。',
     },
     // Footer
     footer: {
-      disclaimer: '本站内容仅供参考，不构成投资建议。投资有风险，DYOR。',
+      disclaimerTitle: '投资免责声明',
+      disclaimer: '本站内容仅供信息参考和教育用途，不应被理解为投资或财务建议。本站或组织对任何投资或交易产生的利润或损失不承担任何责任。请在做出任何投资决定前自行研究并咨询合格的财务顾问。',
       apiDocs: 'API 文档',
-      copyright: '© 2026 CoinRichAI. 保留所有权利。',
+      copyright: '© 2026 driftcrypto.fun. 保留所有权利。',
     },
     // Common
     common: {

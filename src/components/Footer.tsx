@@ -1,6 +1,6 @@
 'use client';
 
-import { AlertTriangle, Github, Twitter, FileText, Server } from 'lucide-react';
+import { AlertTriangle, Github, Twitter, FileText, Server, ShieldAlert } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 
 export default function Footer() {
@@ -9,9 +9,14 @@ export default function Footer() {
   return (
     <footer className="mt-auto border-t border-border/40 bg-[#08080d]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {/* Disclaimer */}
-        <div className="flex items-start gap-2 mb-4">
-          <AlertTriangle className="size-4 text-gold/70 shrink-0 mt-0.5" />
+        {/* Investment Disclaimer — prominent section */}
+        <div className="mb-5 p-4 rounded-xl bg-bearish/[0.04] border border-bearish/10">
+          <div className="flex items-center gap-2 mb-2">
+            <ShieldAlert className="size-4 text-bearish/80 shrink-0" />
+            <h3 className="text-xs font-bold text-bearish/90 uppercase tracking-wider">
+              {t('footer.disclaimerTitle')}
+            </h3>
+          </div>
           <p className="text-xs text-muted-foreground leading-relaxed">
             {t('footer.disclaimer')}
           </p>
