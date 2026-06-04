@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useState } from 'react';
 import { I18nProvider } from '@/lib/i18n';
+import { SessionProvider } from 'next-auth/react';
 
 export default function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -19,7 +20,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nProvider>{children}</I18nProvider>
+      <SessionProvider>
+        <I18nProvider>{children}</I18nProvider>
+      </SessionProvider>
     </QueryClientProvider>
   );
 }

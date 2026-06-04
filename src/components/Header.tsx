@@ -24,6 +24,9 @@ import {
   Target,
   Layers,
   LogIn,
+  User,
+  CreditCard,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,7 +45,11 @@ import {
   DropdownMenuLabel,
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useI18n } from '@/lib/i18n';
+import { useSession, signOut } from 'next-auth/react';
+import SignInDialog from '@/components/auth/SignInDialog';
+import MembershipDialog from '@/components/auth/MembershipDialog';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -93,10 +100,13 @@ const moreItems: MoreItem[] = [
 // ---------------------------------------------------------------------------
 export default function Header() {
   const { t, locale, setLocale } = useI18n();
+  const { data: session } = useSession();
   const [scrolled, setScrolled] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const [membershipOpen, setMembershipOpen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -108,6 +118,20 @@ export default function Header() {
 
   const toggleLocale = () => {
     setLocale(locale === 'en' ? 'zh' : 'en');
+  };
+
+  // Derive user initials for avatar fallback
+  const userInitials = session?.user?.name
+    ? session.user.name
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
+    : 'U';
+
+  const handleSignOut = async () => {
+    await signOut({ callbackUrl: '/' });
   };
 
   return (
@@ -273,22 +297,80 @@ export default function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* Auth buttons (desktop) */}
-            <div className="hidden sm:flex items-center gap-2 ml-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground hover:text-foreground"
-              >
-                {t('header.signIn')}
-              </Button>
-              <Button
-                size="sm"
-                className="bg-gold hover:bg-gold/90 text-[#0a0a0f] font-semibold shadow-lg shadow-gold/20"
-              >
-                {t('header.signUp')}
-              </Button>
-            </div>
+            {/* Auth: Signed in — User dropdown */}
+            {session?.user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="hidden sm:flex items-center gap-2 px-2 hover:bg-white/5"
+                  >
+                    <Avatar className="size-7 ring-1 ring-gold/30">
+                      <AvatarImage
+                        src={session.user.image || undefined}
+                        alt={session.user.name || 'User'}
+                      />
+                      <AvatarFallback className="bg-gold/10 text-gold text-xs font-semibold">
+                        {userInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm text-foreground max-w-[100px] truncate">
+                      {session.user.name}
+                    </span>
+                    <ChevronDown className="size-3 text-muted-foreground" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="w-48 bg-[#12121a]/95 backdrop-blur-xl border-white/10"
+                >
+                  <DropdownMenuLabel className="text-muted-foreground text-xs truncate">
+                    {session.user.email || session.user.name}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator className="bg-white/5" />
+                  <DropdownMenuItem
+                    className="cursor-pointer text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-white/5"
+                  >
+                    <User className="size-4" />
+                    <span>{t('auth.myAccount')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="cursor-pointer text-muted-foreground hover:text-foreground focus:text-foreground focus:bg-white/5"
+                    onClick={() => setMembershipOpen(true)}
+                  >
+                    <CreditCard className="size-4" />
+                    <span>{t('auth.membership')}</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator className="bg-white/5" />
+                  <DropdownMenuItem
+                    className="cursor-pointer text-bearish hover:text-bearish focus:text-bearish focus:bg-white/5"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut className="size-4" />
+                    <span>{t('auth.signOut')}</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              /* Auth: Signed out — Sign In / Sign Up buttons */
+              <div className="hidden sm:flex items-center gap-2 ml-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground hover:text-foreground"
+                  onClick={() => setSignInOpen(true)}
+                >
+                  {t('header.signIn')}
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-gold hover:bg-gold/90 text-[#0a0a0f] font-semibold shadow-lg shadow-gold/20"
+                  onClick={() => setSignInOpen(true)}
+                >
+                  {t('header.signUp')}
+                </Button>
+              </div>
+            )}
 
             {/* Mobile: Hamburger Menu */}
             <div className="lg:hidden">
@@ -403,22 +485,74 @@ export default function Header() {
                       </button>
                     </div>
 
-                    {/* Mobile auth buttons */}
-                    <div className="mt-auto px-4 pb-6 space-y-2">
-                      <p className="text-xs text-muted-foreground/50 px-1 flex items-center gap-1.5">
-                        <LogIn className="size-3" />
-                        {t('header.signInRequired')}
-                      </p>
-                      <Button
-                        variant="outline"
-                        className="w-full border-white/10 hover:bg-white/5"
-                      >
-                        {t('header.signIn')}
-                      </Button>
-                      <Button className="w-full bg-gold hover:bg-gold/90 text-[#0a0a0f] font-semibold shadow-lg shadow-gold/20">
-                        {t('header.signUp')}
-                      </Button>
-                    </div>
+                    {/* Mobile auth section */}
+                    {session?.user ? (
+                      <div className="mt-auto px-4 pb-6 space-y-2">
+                        <div className="flex items-center gap-3 px-3 py-2">
+                          <Avatar className="size-8 ring-1 ring-gold/30">
+                            <AvatarImage
+                              src={session.user.image || undefined}
+                              alt={session.user.name || 'User'}
+                            />
+                            <AvatarFallback className="bg-gold/10 text-gold text-xs font-semibold">
+                              {userInitials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {session.user.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground truncate">
+                              {session.user.email}
+                            </p>
+                          </div>
+                        </div>
+                        <Separator className="bg-white/5" />
+                        <button
+                          onClick={() => {
+                            setMobileOpen(false);
+                            setMembershipOpen(true);
+                          }}
+                          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-white/5 transition-colors"
+                        >
+                          <CreditCard className="size-4" />
+                          <span>{t('auth.membership')}</span>
+                        </button>
+                        <button
+                          onClick={handleSignOut}
+                          className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-bearish hover:bg-white/5 transition-colors"
+                        >
+                          <LogOut className="size-4" />
+                          <span>{t('auth.signOut')}</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-auto px-4 pb-6 space-y-2">
+                        <p className="text-xs text-muted-foreground/50 px-1 flex items-center gap-1.5">
+                          <LogIn className="size-3" />
+                          {t('header.signInRequired')}
+                        </p>
+                        <Button
+                          variant="outline"
+                          className="w-full border-white/10 hover:bg-white/5"
+                          onClick={() => {
+                            setMobileOpen(false);
+                            setSignInOpen(true);
+                          }}
+                        >
+                          {t('header.signIn')}
+                        </Button>
+                        <Button
+                          className="w-full bg-gold hover:bg-gold/90 text-[#0a0a0f] font-semibold shadow-lg shadow-gold/20"
+                          onClick={() => {
+                            setMobileOpen(false);
+                            setSignInOpen(true);
+                          }}
+                        >
+                          {t('header.signUp')}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </SheetContent>
               </Sheet>
@@ -426,6 +560,10 @@ export default function Header() {
           </div>
         </div>
       </div>
+
+      {/* Auth Dialogs */}
+      <SignInDialog open={signInOpen} onOpenChange={setSignInOpen} />
+      <MembershipDialog open={membershipOpen} onOpenChange={setMembershipOpen} />
     </motion.header>
   );
 }
