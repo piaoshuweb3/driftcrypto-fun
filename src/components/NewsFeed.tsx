@@ -39,8 +39,8 @@ type SentimentFilter = 'all' | 'bullish' | 'bearish' | 'neutral';
 // Fetch
 // ---------------------------------------------------------------------------
 
-async function fetchNews(): Promise<NewsItem[]> {
-  const res = await fetch('/api/news?num=20&recency_days=7');
+async function fetchNews(locale: string): Promise<NewsItem[]> {
+  const res = await fetch(`/api/news?num=20&recency_days=7&locale=${locale}`);
   if (!res.ok) throw new Error('Failed to fetch');
   const data = await res.json();
   return data.items;
@@ -224,13 +224,13 @@ function NewsCard({ item, index }: { item: NewsItem; index: number }) {
 // ---------------------------------------------------------------------------
 
 export default function NewsFeed() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [filter, setFilter] = useState<SentimentFilter>('all');
   const [visibleCount, setVisibleCount] = useState(8);
 
   const { data: items = [], isLoading, isError, error } = useQuery({
-    queryKey: ['news'],
-    queryFn: fetchNews,
+    queryKey: ['news', locale],
+    queryFn: () => fetchNews(locale),
     staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
   });

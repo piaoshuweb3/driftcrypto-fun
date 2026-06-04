@@ -826,3 +826,65 @@ Implemented complete user authentication system with 3 login methods (Google, Tw
 ### Note on Google/Twitter OAuth
 These providers require OAuth app credentials (GOOGLE_ID, TWITTER_ID) to be configured in environment variables. Without them, the buttons redirect to NextAuth's default sign-in page but won't complete the flow. This is expected for MVP — credentials need to be set up in Google Cloud Console and Twitter Developer Portal.
 
+
+---
+
+## Task ID: 6 — Logo Replacement, Hydration Fix, News Bilingual, Documentation
+
+**Agent**: main
+**Date**: 2026-03-05
+
+### Summary
+Fixed three critical issues: (1) replaced old PNG logo with new SVG logo, (2) resolved React hydration mismatch error caused by i18n SSR/client locale mismatch, (3) added bilingual mock news data with locale-aware API. Also created comprehensive feature and deployment documentation.
+
+### What was done
+
+#### 1. Logo Replacement (PNG → SVG)
+- Copied uploaded `driftcrypto_logo.svg` to `/public/driftcrypto-logo.svg`
+- Updated `Header.tsx`: Replaced both `<Image src="/driftcrypto-logo.png">` instances with `<img src="/driftcrypto-logo.svg">` (desktop + mobile)
+- Removed `import Image from 'next/image'` from Header.tsx (no longer used)
+- Changed `object-cover` to `object-contain` for proper SVG rendering
+- Updated `layout.tsx`: Changed favicon from `driftcrypto-logo.png` to `driftcrypto-logo.svg`
+
+#### 2. Hydration Mismatch Fix (Critical)
+- **Root Cause**: `useSyncExternalStore` returned 'en' from server snapshot but 'zh' from client snapshot (reading localStorage), causing React hydration mismatch where server rendered "Market Overview" but client expected "市场概览"
+- **Fix**: Rewrote `i18n.tsx` to use `useSyncExternalStore` with a custom listener system:
+  - `getServerSnapshotLocale()` always returns `'en'` (matching SSR output)
+  - `getSnapshotLocale()` reads localStorage (may return 'zh')
+  - Custom `emitLocaleChange()` function notifies subscribers when locale changes
+  - Locale state synced via render-phase comparison (`if (storedLocale !== localeState)`)
+  - `suppressHydrationWarning` already present on `<html>` tag handles the warning
+- **Result**: Zero hydration errors, zero runtime errors, zero insertBefore errors
+
+#### 3. News Bilingual Content
+- Added `ZH_MOCK_NEWS` array (12 Chinese articles) to `/api/news/route.ts`
+- Added `locale` query parameter support to news API
+- Created `fallbackNews` variable that selects ZH or EN mock data based on locale
+- Added Chinese sentiment keywords (上涨, 飙升, 突破, 下跌, 暴跌, etc.) to classifier
+- Updated `NewsFeed.tsx`:
+  - `fetchNews()` now accepts `locale` parameter
+  - Query key includes locale: `['news', locale]`
+  - Language switch triggers news refetch with correct locale
+
+#### 4. Documentation
+- Created `/home/z/my-project/FEATURES_AND_DEPLOYMENT.md` with:
+  - Feature introduction (9 major features)
+  - Technology stack table
+  - API endpoint reference with query parameters
+  - Project structure diagram
+  - Deployment guide (3 options: standalone, Docker, Vercel)
+  - Database management commands
+  - Troubleshooting table
+  - Key design decisions
+
+### Browser Verification Results
+✅ English mode: All labels, news, disclaimer in English
+✅ Chinese mode: All labels, news, disclaimer in Chinese
+✅ Language switcher: Real-time EN↔ZH toggle works instantly
+✅ News content: English mock data in EN mode, Chinese mock data in ZH mode
+✅ SVG logo displays correctly
+✅ Zero hydration errors
+✅ Zero runtime errors
+✅ Zero insertBefore errors
+✅ Zero lint errors
+✅ Footer disclaimer with ShieldAlert icon in both languages

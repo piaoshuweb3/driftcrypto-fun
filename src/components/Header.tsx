@@ -50,7 +50,6 @@ import { useI18n } from '@/lib/i18n';
 import { useSession, signOut } from 'next-auth/react';
 import SignInDialog from '@/components/auth/SignInDialog';
 import MembershipDialog from '@/components/auth/MembershipDialog';
-import Image from 'next/image';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
 
@@ -150,13 +149,12 @@ export default function Header() {
           {/* Left: Logo + Brand */}
           <Link href="/" className="flex items-center gap-2.5 group shrink-0">
             <div className="relative w-8 h-8 overflow-hidden rounded-lg ring-1 ring-gold/20 group-hover:ring-gold/40 transition-all">
-              <Image
-                src="/driftcrypto-logo.png"
+              <img
+                src="/driftcrypto-logo.svg"
                 alt="driftcrypto Logo"
                 width={32}
                 height={32}
-                className="object-cover"
-                priority
+                className="object-contain"
               />
             </div>
             <span className="text-xl font-bold tracking-tight gradient-text">
@@ -392,12 +390,12 @@ export default function Header() {
                     {/* Mobile header */}
                     <div className="flex items-center gap-2.5 px-6 py-5 border-b border-white/5">
                       <div className="relative w-7 h-7 overflow-hidden rounded-lg ring-1 ring-gold/20">
-                        <Image
-                          src="/driftcrypto-logo.png"
+                        <img
+                          src="/driftcrypto-logo.svg"
                           alt="driftcrypto Logo"
                           width={28}
                           height={28}
-                          className="object-cover"
+                          className="object-contain"
                         />
                       </div>
                       <span className="text-lg font-bold gradient-text">

@@ -38,7 +38,7 @@ function resolve(obj: Record<string, unknown>, path: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// localStorage helpers
+// localStorage helpers + external store for cross-tab sync
 // ---------------------------------------------------------------------------
 
 const STORAGE_KEY = 'driftcrypto-locale';
@@ -71,11 +71,27 @@ function writeStoredLocale(locale: Locale) {
 
 // ---------------------------------------------------------------------------
 // useSyncExternalStore for locale — avoids setState-in-effect lint error
+// and provides cross-tab sync while handling hydration safely.
+//
+// Strategy: always return 'en' from the *server* snapshot so SSR output
+// is deterministic.  On the client, the snapshot reads localStorage, which
+// may differ — that's fine because React will re-render after hydration
+// with the correct value (suppressHydrationWarning on <html> handles the
+// warning).
 // ---------------------------------------------------------------------------
 
+let listeners: Array<() => void> = [];
+
 function subscribeLocale(callback: () => void) {
-  window.addEventListener('storage', callback);
-  return () => window.removeEventListener('storage', callback);
+  listeners.push(callback);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === STORAGE_KEY) callback();
+  };
+  window.addEventListener('storage', onStorage);
+  return () => {
+    listeners = listeners.filter((l) => l !== callback);
+    window.removeEventListener('storage', onStorage);
+  };
 }
 
 function getSnapshotLocale(): Locale {
@@ -86,13 +102,16 @@ function getServerSnapshotLocale(): Locale {
   return 'en';
 }
 
+function emitLocaleChange() {
+  for (const l of listeners) l();
+}
+
 // ---------------------------------------------------------------------------
 // Provider
 // ---------------------------------------------------------------------------
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  // Use useSyncExternalStore to read locale from localStorage without
-  // triggering the "setState in effect" lint rule.
+  // Read locale via useSyncExternalStore for hydration safety
   const storedLocale = useSyncExternalStore(
     subscribeLocale,
     getSnapshotLocale,
@@ -102,7 +121,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const [localeState, setLocaleState] = useState<Locale>(storedLocale);
 
   // Sync local state whenever the external snapshot changes
-  // (e.g. another tab wrote to localStorage)
+  // (e.g. another tab wrote to localStorage or initial client read)
   if (storedLocale !== localeState) {
     setLocaleState(storedLocale);
   }
@@ -110,12 +129,8 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
     writeStoredLocale(newLocale);
-    // Dispatch a storage event so other hooks pick up the change
-    try {
-      window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY }));
-    } catch {
-      // ignore
-    }
+    // Notify subscribers so useSyncExternalStore picks up the change
+    emitLocaleChange();
   }, []);
 
   const t = useCallback(

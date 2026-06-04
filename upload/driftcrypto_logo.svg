@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <title>DriftCrypto.fun Logo</title>
+  <desc>Dynamic animated logo for driftcrypto.fun crypto news platform</desc>
+
+  <defs>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0e1a"/>
+      <stop offset="100%" stop-color="#1a1f35"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="50%" stop-color="#FFA500"/>
+      <stop offset="100%" stop-color="#FF8C00"/>
+    </linearGradient>
+    <linearGradient id="tealGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00D4AA"/>
+      <stop offset="100%" stop-color="#00A88A"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFD700" stop-opacity="0.8"/>
+      <stop offset="100%" stop-color="#00D4AA" stop-opacity="0.8"/>
+    </linearGradient>
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- Clip for drift motion -->
+    <clipPath id="iconClip">
+      <rect x="10" y="15" width="90" height="90" rx="18"/>
+    </clipPath>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="120" rx="16" fill="url(#bgGrad)"/>
+
+  <!-- ===== Icon Area ===== -->
+  <g clip-path="url(#iconClip)">
+    <!-- Icon background -->
+    <rect x="10" y="15" width="90" height="90" rx="18" fill="#12162b"/>
+
+    <!-- Animated drifting coin symbol -->
+    <!-- Outer ring - spinning -->
+    <g filter="url(#glow)">
+      <ellipse cx="55" cy="60" rx="32" ry="32" fill="none" stroke="url(#goldGrad)" stroke-width="2.5">
+        <animateTransform attributeName="transform" type="rotate" from="0 55 60" to="360 55 60" dur="6s" repeatCount="indefinite"/>
+      </ellipse>
+    </g>
+
+    <!-- Inner ring - counter spinning -->
+    <ellipse cx="55" cy="60" rx="22" ry="22" fill="none" stroke="url(#tealGrad)" stroke-width="1.5" stroke-dasharray="6 4">
+      <animateTransform attributeName="transform" type="rotate" from="360 55 60" to="0 55 60" dur="4s" repeatCount="indefinite"/>
+    </ellipse>
+
+    <!-- D letter in center - the drift "D" -->
+    <text x="55" y="68" font-family="Arial Black, Arial, sans-serif" font-size="30" font-weight="900"
+          fill="url(#goldGrad)" text-anchor="middle" filter="url(#softGlow)">
+      D
+      <animate attributeName="opacity" values="1;0.7;1" dur="2s" repeatCount="indefinite"/>
+    </text>
+
+    <!-- Orbiting particles -->
+    <circle cx="55" cy="28" r="3" fill="#FFD700">
+      <animateTransform attributeName="transform" type="rotate" from="0 55 60" to="360 55 60" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="55" cy="92" r="2.5" fill="#00D4AA">
+      <animateTransform attributeName="transform" type="rotate" from="0 55 60" to="360 55 60" dur="4.5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="23" cy="60" r="2" fill="#FFD700">
+      <animateTransform attributeName="transform" type="rotate" from="0 55 60" to="360 55 60" dur="5s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="87" cy="60" r="2" fill="#00D4AA">
+      <animateTransform attributeName="transform" type="rotate" from="0 55 60" to="360 55 60" dur="3.5s" repeatCount="indefinite"/>
+    </circle>
+
+    <!-- Drift trail dots -->
+    <circle cx="30" cy="45" r="1.5" fill="#FFD700" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;0;0.6" dur="1.5s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="30;35;30" dur="3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="78" cy="75" r="1.5" fill="#00D4AA" opacity="0.6">
+      <animate attributeName="opacity" values="0.6;0;0.6" dur="1.8s" repeatCount="indefinite"/>
+      <animate attributeName="cx" values="78;73;78" dur="3s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- ===== Text Area ===== -->
+  <!-- driftcrypto -->
+  <text x="115" y="50" font-family="Arial Black, Arial, sans-serif" font-size="26" font-weight="900" letter-spacing="1">
+    <tspan fill="#ffffff">drift</tspan>
+    <tspan fill="url(#tealGrad)">crypto</tspan>
+  </text>
+
+  <!-- .fun -->
+  <text x="115" y="80" font-family="Arial, sans-serif" font-size="22" font-weight="700" letter-spacing="0.5">
+    <tspan fill="url(#goldGrad)" filter="url(#softGlow)">.fun</tspan>
+  </text>
+
+  <!-- Tagline below -->
+  <text x="115" y="100" font-family="Arial, sans-serif" font-size="10" fill="#6B7280" letter-spacing="2">
+    CRYPTO INTELLIGENCE
+  </text>
+
+  <!-- Decorative line under text -->
+  <line x1="115" y1="106" x2="280" y2="106" stroke="url(#glowGrad)" stroke-width="1" opacity="0.5">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="3s" repeatCount="indefinite"/>
+  </line>
+
+  <!-- Animated pulse dots on right side -->
+  <g>
+    <circle cx="310" cy="60" r="2.5" fill="#FFD700" opacity="0.8">
+      <animate attributeName="r" values="2.5;4;2.5" dur="2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="325" cy="60" r="2.5" fill="#00D4AA" opacity="0.8">
+      <animate attributeName="r" values="2.5;4;2.5" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" begin="0.3s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="340" cy="60" r="2.5" fill="#FFD700" opacity="0.8">
+      <animate attributeName="r" values="2.5;4;2.5" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" begin="0.6s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="355" cy="60" r="2.5" fill="#00D4AA" opacity="0.8">
+      <animate attributeName="r" values="2.5;4;2.5" dur="2s" begin="0.9s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" begin="0.9s" repeatCount="indefinite"/>
+    </circle>
+    <circle cx="370" cy="60" r="2.5" fill="#FFD700" opacity="0.8">
+      <animate attributeName="r" values="2.5;4;2.5" dur="2s" begin="1.2s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2s" begin="1.2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- Subtle grid lines in background for tech feel -->
+  <line x1="10" y1="40" x2="105" y2="40" stroke="#ffffff" stroke-opacity="0.03" stroke-width="0.5"/>
+  <line x1="10" y1="80" x2="105" y2="80" stroke="#ffffff" stroke-opacity="0.03" stroke-width="0.5"/>
+  <line x1="30" y1="15" x2="30" y2="105" stroke="#ffffff" stroke-opacity="0.03" stroke-width="0.5"/>
+  <line x1="80" y1="15" x2="80" y2="105" stroke="#ffffff" stroke-opacity="0.03" stroke-width="0.5"/>
+
+  <!-- Border glow -->
+  <rect x="1" y="1" width="398" height="118" rx="16" fill="none" stroke="url(#glowGrad)" stroke-width="1" opacity="0.3">
+    <animate attributeName="opacity" values="0.2;0.5;0.2" dur="4s" repeatCount="indefinite"/>
+  </rect>
+</svg>

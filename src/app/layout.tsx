@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   keywords: ["cryptocurrency", "AI", "crypto news", "bitcoin", "ethereum", "market data", "fear greed index"],
   authors: [{ name: "driftcrypto" }],
   icons: {
-    icon: "/driftcrypto-logo.png",
+    icon: "/driftcrypto-logo.svg",
   },
   openGraph: {
     title: "driftcrypto - AI Powered Cryptocurrency Insights",

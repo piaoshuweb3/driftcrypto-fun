@@ -9,11 +9,15 @@ import { db } from "@/lib/db";
 const BULLISH_KEYWORDS = [
   "rally", "surge", "bull", "gain", "pump", "moon",
   "breakout", "soar", "positive", "growth", "upgrade",
+  // Chinese keywords
+  "上涨", "飙升", "突破", "增长", "利好", "新高", "反弹", "牛市",
 ] as const;
 
 const BEARISH_KEYWORDS = [
   "crash", "dump", "bear", "decline", "drop", "fall",
   "hack", "exploit", "ban", "risk", "warning", "fear",
+  // Chinese keywords
+  "下跌", "暴跌", "崩盘", "损失", "风险", "打击", "漏洞", "熊市", "紧张",
 ] as const;
 
 function classifySentiment(text: string): "bullish" | "bearish" | "neutral" {
@@ -106,6 +110,8 @@ export async function GET(request: NextRequest) {
     30,
   );
 
+  const locale = searchParams.get("locale") ?? "en";
+
   // Fallback mock data when search API is unavailable
   const MOCK_NEWS: NewsItem[] = [
     { id: "mock1", title: "Bitcoin Surges Past $65K as Institutional Demand Grows", url: "https://www.coindesk.com/markets/2026/06/04/bitcoin-surges/", snippet: "Bitcoin rallied above $65,000 driven by strong institutional inflows and growing ETF adoption. Analysts see potential for new all-time highs.", source: "coindesk.com", sentiment: "bullish", publishedAt: new Date(Date.now() - 3600000).toISOString(), favicon: "" },
@@ -121,6 +127,23 @@ export async function GET(request: NextRequest) {
     { id: "mock11", title: "Crypto Market Faces Increased Volatility Amid Geopolitical Tensions", url: "https://decrypt.co/crypto-volatility", snippet: "Cryptocurrency markets experienced significant volatility as geopolitical tensions escalate, with BTC dropping 5% in 24 hours.", source: "decrypt.co", sentiment: "bearish", publishedAt: new Date(Date.now() - 39600000).toISOString(), favicon: "" },
     { id: "mock12", title: "New AI Agent Framework Enables Autonomous DeFi Trading", url: "https://cointelegraph.com/news/ai-agent-defi", snippet: "A new AI agent framework allows autonomous trading on DeFi protocols, raising questions about market manipulation risks.", source: "cointelegraph.com", sentiment: "neutral", publishedAt: new Date(Date.now() - 43200000).toISOString(), favicon: "" },
   ];
+
+  const ZH_MOCK_NEWS: NewsItem[] = [
+    { id: "zmock1", title: "比特币突破6.5万美元，机构需求持续增长", url: "https://www.coindesk.com/markets/2026/06/04/bitcoin-surges/", snippet: "受机构资金强劲流入和ETF采用增长推动，比特币飙升至65,000美元以上。分析师认为可能创下新的历史新高。", source: "coindesk.com", sentiment: "bullish", publishedAt: new Date(Date.now() - 3600000).toISOString(), favicon: "" },
+    { id: "zmock2", title: "美国SEC批准新加密货币监管框架", url: "https://www.theblock.co/post/sec-crypto-framework", snippet: "美国证券交易委员会已批准一项全面的数字资产监管框架，为行业提供了更清晰的合规指引。", source: "theblock.co", sentiment: "bullish", publishedAt: new Date(Date.now() - 7200000).toISOString(), favicon: "" },
+    { id: "zmock3", title: "以太坊Layer 2解决方案交易量创历史新高", url: "https://cointelegraph.com/news/ethereum-l2-volume", snippet: "以太坊Layer 2网络已处理了创纪录数量的交易，标志着扩容解决方案的广泛采用。", source: "cointelegraph.com", sentiment: "bullish", publishedAt: new Date(Date.now() - 10800000).toISOString(), favicon: "" },
+    { id: "zmock4", title: "大型加密货币交易所遭遇安全漏洞", url: "https://decrypt.co/security-breach", snippet: "一家大型加密货币交易所报告了安全漏洞，导致价值数百万美元的数字资产损失。", source: "decrypt.co", sentiment: "bearish", publishedAt: new Date(Date.now() - 14400000).toISOString(), favicon: "" },
+    { id: "zmock5", title: "AI驱动的交易机器人在加密市场日益流行", url: "https://www.coindesk.com/tech/ai-trading-bots", snippet: "AI驱动的交易算法在加密货币交易者中越来越受欢迎，他们寻求在波动市场中获得优势。", source: "coindesk.com", sentiment: "neutral", publishedAt: new Date(Date.now() - 18000000).toISOString(), favicon: "" },
+    { id: "zmock6", title: "Solana DeFi总锁仓量创历史新高", url: "https://www.theblock.co/post/solana-defi-tvl", snippet: "Solana DeFi协议中的总锁仓量已达到新纪录，由流动性质押和meme币活动推动。", source: "theblock.co", sentiment: "bullish", publishedAt: new Date(Date.now() - 21600000).toISOString(), favicon: "" },
+    { id: "zmock7", title: "中国加大打击加密货币挖矿业务", url: "https://reuters.com/china-crypto-mining", snippet: "中国当局已在多个省份加大了对加密货币挖矿业务的打击力度。", source: "reuters.com", sentiment: "bearish", publishedAt: new Date(Date.now() - 25200000).toISOString(), favicon: "" },
+    { id: "zmock8", title: "DeFi协议推出跨链桥接解决方案", url: "https://cointelegraph.com/news/cross-chain-bridge", snippet: "一个新的DeFi协议推出了跨链桥，实现主要区块链之间的无缝资产转移。", source: "cointelegraph.com", sentiment: "neutral", publishedAt: new Date(Date.now() - 28800000).toISOString(), favicon: "" },
+    { id: "zmock9", title: "MicroStrategy再购入1,000枚BTC", url: "https://www.coindesk.com/business/microstrategy-btc", snippet: "MicroStrategy已购买额外1,000枚BTC，其总持有量超过200,000枚比特币。", source: "coindesk.com", sentiment: "bullish", publishedAt: new Date(Date.now() - 32400000).toISOString(), favicon: "" },
+    { id: "zmock10", title: "亚洲央行数字货币试点扩大", url: "https://www.theblock.co/post/cbdc-asia-pilots", snippet: "多个亚洲国家正在扩大央行数字货币试点项目，预计未来两年内推出商用版本。", source: "theblock.co", sentiment: "neutral", publishedAt: new Date(Date.now() - 36000000).toISOString(), favicon: "" },
+    { id: "zmock11", title: "地缘政治紧张局势加剧，加密市场面临剧烈波动", url: "https://decrypt.co/crypto-volatility", snippet: "随着地缘政治紧张局势升级，加密货币市场经历了大幅波动，BTC在24小时内下跌5%。", source: "decrypt.co", sentiment: "bearish", publishedAt: new Date(Date.now() - 39600000).toISOString(), favicon: "" },
+    { id: "zmock12", title: "新型AI代理框架实现自主DeFi交易", url: "https://cointelegraph.com/news/ai-agent-defi", snippet: "一种新型AI代理框架允许在DeFi协议上进行自主交易，引发了对市场操纵风险的讨论。", source: "cointelegraph.com", sentiment: "neutral", publishedAt: new Date(Date.now() - 43200000).toISOString(), favicon: "" },
+  ];
+
+  const fallbackNews = locale === 'zh' ? ZH_MOCK_NEWS : MOCK_NEWS;
 
   try {
     // ----- 1. Parallel search across multiple queries -----------------------
@@ -143,8 +166,8 @@ export async function GET(request: NextRequest) {
       zai = await ZAI.create();
     } catch {
       console.warn("[news] ZAI SDK init failed, returning mock data");
-      const items = MOCK_NEWS.slice(0, num);
-      return NextResponse.json({ items, total: MOCK_NEWS.length, hasMore: MOCK_NEWS.length > num });
+      const items = fallbackNews.slice(0, num);
+      return NextResponse.json({ items, total: fallbackNews.length, hasMore: fallbackNews.length > num });
     }
 
     const searchPromises = queries.map((query) =>
@@ -230,8 +253,8 @@ export async function GET(request: NextRequest) {
 
     if (deduped.length === 0) {
       console.warn("[news] No search results, returning mock data");
-      const items = MOCK_NEWS.slice(0, num);
-      return NextResponse.json({ items, total: MOCK_NEWS.length, hasMore: MOCK_NEWS.length > num });
+      const items = fallbackNews.slice(0, num);
+      return NextResponse.json({ items, total: fallbackNews.length, hasMore: fallbackNews.length > num });
     }
 
     // ----- 6. Paginate -----------------------------------------------------
@@ -245,7 +268,7 @@ export async function GET(request: NextRequest) {
     console.error("[news] Unexpected error:", error);
 
     // Return mock data instead of error
-    const items = MOCK_NEWS.slice(0, num);
-    return NextResponse.json({ items, total: MOCK_NEWS.length, hasMore: MOCK_NEWS.length > num });
+    const items = fallbackNews.slice(0, num);
+    return NextResponse.json({ items, total: fallbackNews.length, hasMore: fallbackNews.length > num });
   }
 }
