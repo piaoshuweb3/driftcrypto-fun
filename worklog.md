@@ -96,3 +96,35 @@ Stage Summary:
 - Footer updated with Telegram link (t.me/DriftcryptoBot)
 - Auto-restart wrapper script (run.sh) for production reliability
 - Note: Sandbox environment kills background processes after ~30-60s; in production the bot runs stably with the restart wrapper
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix Telegram bot menu click sync — data not showing when buttons clicked
+
+Work Log:
+- Diagnosed 3 root causes for bot menu click sync failure:
+  1. AI Chat API returns `{ message: "..." }` but bot expected `{ response: "..." }` — added fallback extraction
+  2. `answerCallbackQuery()` called twice per callback (first with loading text, then again at end) — Telegram only allows answering once, causing silent failures with empty `catch {}` blocks
+  3. MarkdownV2 escaping issues: numeric values like `54.91` (btcDominance), `+3.37%` (change), `$63,627.00` (prices) contain `.`, `+`, `,` characters that must be escaped in MarkdownV2 — all format functions now use `esc()` wrapper
+- Rewrote entire bot code with fixes:
+  - `extractAIResponse()` helper that checks both `message` and `response` keys
+  - Single `answerCallbackQuery()` per callback — answer once at start with loading toast, then fetch data
+  - All numeric formatters (`fmtUSD`, `fmtLarge`, `fmtChg`) now return MarkdownV2-safe strings via `esc()`
+  - `escNum()` for raw number escaping (btcDominance, fg.value, etc.)
+  - `safeEdit()` and `safeApiEdit()` — fallback to plain text if MarkdownV2 parse fails
+  - Replaced all empty `catch {}` with proper error logging
+- Added real data for sections that previously showed static text:
+  - Trending section: sorts coins by absolute change, shows top gainers/losers
+  - Macro section: shows crypto total market cap from API
+  - PiaoShu section: shows marketOverview data (BTC/ETH dominance, total market cap)
+- Set bot commands menu, description, and short description via Telegram API
+- Verified all API endpoints working: prices (100 coins), fear-greed (12/Extreme Fear), news (3 items), piao-shu (gainers/losers), AI chat (message key)
+- Bot running stable on port 3002, no MarkdownV2 parse errors
+
+Stage Summary:
+- Fixed 3 critical bugs causing menu click data sync failure
+- All 19 sections now show real-time data when clicked
+- MarkdownV2 escaping fully handled with safe fallback
+- AI Chat correctly reads `message` key from API response
+- Bot stable, no parse errors, health check passing
