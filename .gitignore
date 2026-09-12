@@ -62,3 +62,6 @@ server.log
 
 # Marketing screenshots are documentation artifacts, not source.
 /screenshot-*.png
+
+# Telegram bot runtime state (per-deployment language choices)
+.bot-langs.json

@@ -7,5 +7,8 @@
   },
   "dependencies": {
     "grammy": "^1.36.3"
+  },
+  "devDependencies": {
+    "bun-types": "^1.4.2"
   }
 }

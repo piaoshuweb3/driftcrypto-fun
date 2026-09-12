@@ -5,21 +5,74 @@
 // Port: 3002 (health check server)
 // =============================================================================
 
+import { readFileSync, writeFileSync } from "node:fs";
 import { Bot, InlineKeyboard } from "grammy";
 
 // ---------------------------------------------------------------------------
-// Config
+// Config — comes from the environment only.
 // ---------------------------------------------------------------------------
-const BOT_TOKEN = "8982097824:AAEzZcN5yfCVHieRLmQ-0CBHebVccRPhs3k";
-const API_BASE = "http://localhost:3000";
-const BOT_PORT = 3002;
+// This file ships to a public repository, so anything written here is public.
+// The bot token MUST NOT be committed; supply it via TELEGRAM_BOT_TOKEN
+// (create or rotate one with @BotFather).
+// ---------------------------------------------------------------------------
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+
+if (!BOT_TOKEN) {
+  console.error(
+    "❌ TELEGRAM_BOT_TOKEN is not set.\n" +
+      "   Create a bot with @BotFather, then export its token:\n" +
+      "     export TELEGRAM_BOT_TOKEN=123456:ABC-DEF...",
+  );
+  process.exit(1);
+}
+
+/** Base URL of the driftcrypto.fun API this bot talks to. */
+const API_BASE = (
+  process.env.DRIFTCRYPTO_API_BASE ?? "https://driftcrypto-fun.vercel.app"
+).replace(/\/+$/, "");
+
+/** Port for the health-check HTTP server. */
+const BOT_PORT = Number(process.env.BOT_PORT ?? 3002);
 
 const bot = new Bot(BOT_TOKEN);
 
 // ---------------------------------------------------------------------------
-// User language store (in-memory, keyed by chat ID)
+// User language store
 // ---------------------------------------------------------------------------
-const userLangs = new Map<number, "en" | "zh">();
+// Persisted to disk: an in-memory Map silently reset every user back to the
+// default language on each restart. Writes are debounced so a busy group
+// cannot hammer the filesystem.
+// ---------------------------------------------------------------------------
+const LANG_FILE = process.env.BOT_LANG_FILE ?? "./.bot-langs.json";
+
+const userLangs = new Map<number, "en" | "zh">(
+  (() => {
+    try {
+      const raw = JSON.parse(readFileSync(LANG_FILE, "utf8"));
+      return Array.isArray(raw) ? raw : [];
+    } catch {
+      return [];
+    }
+  })(),
+);
+
+let langSaveTimer: ReturnType<typeof setTimeout> | null = null;
+
+function saveLangs() {
+  if (langSaveTimer) clearTimeout(langSaveTimer);
+  langSaveTimer = setTimeout(() => {
+    try {
+      writeFileSync(LANG_FILE, JSON.stringify([...userLangs]));
+    } catch (err) {
+      console.error("Failed to persist language choices:", err);
+    }
+  }, 500);
+}
+
+/** Chat id from any context type; 0 keeps callers total. */
+function ctxChatId(ctx: { chat?: { id: number }; from?: { id: number } }): number {
+  return ctx.chat?.id ?? ctx.from?.id ?? 0;
+}
 
 function getLang(chatId: number): "en" | "zh" {
   return userLangs.get(chatId) ?? "zh";
@@ -27,6 +80,7 @@ function getLang(chatId: number): "en" | "zh" {
 
 function setLang(chatId: number, lang: "en" | "zh") {
   userLangs.set(chatId, lang);
+  saveLangs();
 }
 
 // ---------------------------------------------------------------------------
@@ -124,22 +178,22 @@ function fgEmoji(v: number): string {
 // ---------------------------------------------------------------------------
 async function safeEdit(ctx: any, text: string, kb: InlineKeyboard) {
   try {
-    await ctx.editMessageText(text, { parse_mode: "MarkdownV2", reply_markup: kb, disable_web_page_preview: true });
+    await ctx.editMessageText(text, { parse_mode: "MarkdownV2", reply_markup: kb, link_preview_options: { is_disabled: true } });
   } catch (e: any) {
     if (e?.description?.includes("parse entities")) {
       const plain = text.replace(/\\([.*_\-+{}[\]()~`>#!|])/g, "$1");
-      try { await ctx.editMessageText(plain, { reply_markup: kb, disable_web_page_preview: true }); } catch {}
+      try { await ctx.editMessageText(plain, { reply_markup: kb, link_preview_options: { is_disabled: true } }); } catch {}
     } else console.error("editMessage error:", e);
   }
 }
 
 async function safeApiEdit(chatId: number, msgId: number, text: string, kb: InlineKeyboard) {
   try {
-    await bot.api.editMessageText(chatId, msgId, text, { parse_mode: "MarkdownV2", reply_markup: kb, disable_web_page_preview: true });
+    await bot.api.editMessageText(chatId, msgId, text, { parse_mode: "MarkdownV2", reply_markup: kb, link_preview_options: { is_disabled: true } });
   } catch (e: any) {
     if (e?.description?.includes("parse entities")) {
       const plain = text.replace(/\\([.*_\-+{}[\]()~`>#!|])/g, "$1");
-      try { await bot.api.editMessageText(chatId, msgId, plain, { reply_markup: kb, disable_web_page_preview: true }); } catch {}
+      try { await bot.api.editMessageText(chatId, msgId, plain, { reply_markup: kb, link_preview_options: { is_disabled: true } }); } catch {}
     } else console.error("api editMessage error:", e);
   }
 }
@@ -253,19 +307,235 @@ function moreKB(l: L): InlineKeyboard {
 // ===========================================================================
 
 bot.command("start", async (ctx) => {
-  const l = getLang(ctx.chat.id);
-  await ctx.reply(t[l].welcome, { parse_mode: "MarkdownV2", reply_markup: mainKB(l), disable_web_page_preview: true });
+  const l = getLang(ctxChatId(ctx));
+  await ctx.reply(t[l].welcome, { parse_mode: "MarkdownV2", reply_markup: mainKB(l), link_preview_options: { is_disabled: true } });
 });
 
 bot.command("help", async (ctx) => {
-  const l = getLang(ctx.chat.id);
-  await ctx.reply(t[l].helpText, { parse_mode: "MarkdownV2", disable_web_page_preview: true });
+  const l = getLang(ctxChatId(ctx));
+  // Rendered from COMMAND_MENU so help can never drift from the "/" menu.
+  const lines = COMMAND_MENU[l].map((c) => "/" + c.command + " \\- " + c.description);
+  const text =
+    (l === "zh" ? "*driftcrypto\\.fun 机器人命令*\n\n" : "*driftcrypto\\.fun Bot Commands*\n\n") +
+    lines.join("\n") +
+    (l === "zh"
+      ? "\n\n*导航：* 使用内联按钮浏览所有栏目\\！"
+      : "\n\n*Navigation:* Use the inline buttons to explore every section\\!");
+  await ctx.reply(text, { parse_mode: "MarkdownV2", link_preview_options: { is_disabled: true } });
+});
+// ---------------------------------------------------------------------------
+// Command menu
+// ---------------------------------------------------------------------------
+// Registered with Telegram so every client shows the "/" list. Two explicit
+// languages plus a default, otherwise non-Chinese clients get the Chinese menu.
+// /help is rendered from this table, so the two can never drift apart.
+// ---------------------------------------------------------------------------
+const COMMAND_MENU: Record<L, Array<{ command: string; description: string }>> = {
+  zh: [
+    { command: "start", description: "🏠 主菜单" },
+    { command: "market", description: "📈 行情 Top 15" },
+    { command: "trending", description: "🔥 涨跌榜" },
+    { command: "price", description: "💰 查价，如 /price bitcoin" },
+    { command: "ai", description: "🤖 问 AI，如 /ai BTC 前景" },
+    { command: "news", description: "📰 最新新闻" },
+    { command: "feargreed", description: "💚 恐慌贪婪指数" },
+    { command: "piaoshu", description: "👑 飘叔每日分析" },
+    { command: "site", description: "🌐 官网与链接" },
+    { command: "lang", description: "🌐 切换语言" },
+    { command: "help", description: "❓ 帮助" },
+  ],
+  en: [
+    { command: "start", description: "🏠 Main menu" },
+    { command: "market", description: "📈 Market top 15" },
+    { command: "trending", description: "🔥 Top movers" },
+    { command: "price", description: "💰 Price lookup, e.g. /price bitcoin" },
+    { command: "ai", description: "🤖 Ask the AI, e.g. /ai BTC outlook" },
+    { command: "news", description: "📰 Latest news" },
+    { command: "feargreed", description: "💚 Fear & Greed Index" },
+    { command: "piaoshu", description: "👑 PiaoShu daily analysis" },
+    { command: "site", description: "🌐 Website & links" },
+    { command: "lang", description: "🌐 Switch language" },
+    { command: "help", description: "❓ Help" },
+  ],
+};
+
+async function registerCommandMenu() {
+  try {
+    await bot.api.setMyCommands(COMMAND_MENU.zh, { language_code: "zh" });
+    await bot.api.setMyCommands(COMMAND_MENU.en, { language_code: "en" });
+    // Default for every other language.
+    await bot.api.setMyCommands(COMMAND_MENU.en);
+    console.log("✅ Command menu registered (" + COMMAND_MENU.en.length + " commands)");
+  } catch (err) {
+    console.error("Failed to register the command menu:", err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// /market — top coins by market cap
+// ---------------------------------------------------------------------------
+bot.command("market", async (ctx) => {
+  const l = getLang(ctxChatId(ctx));
+  const s = t[l];
+  const msg = await ctx.reply(s.loading);
+
+  const data = await api<PricesResponse>("/api/prices");
+  if (!data?.coins?.length) {
+    await safeApiEdit(ctxChatId(ctx), msg.message_id, s.error, mainKB(l));
+    return;
+  }
+
+  let text = l === "zh" ? "📈 *行情 Top 15*\n\n" : "📈 *Market Top 15*\n\n";
+  for (const c of data.coins.slice(0, 15)) {
+    text +=
+      chgEmoji(c.change24h) +
+      " " +
+      esc(c.symbol.toUpperCase().padEnd(7)) +
+      " " +
+      fmtUSD(c.usdPrice) +
+      " \\(" +
+      fmtChg(c.change24h) +
+      "\\)\n";
+  }
+  if (data.global) {
+    text +=
+      (l === "zh" ? "\n🌐 总市值：" : "\n🌐 Total MCap: ") +
+      fmtLarge(data.global.totalMarketCap) +
+      " \\(" +
+      fmtChg(data.global.marketCapChange24h) +
+      "\\)";
+  }
+
+  await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
 
+// ---------------------------------------------------------------------------
+// /trending — biggest movers in either direction
+// ---------------------------------------------------------------------------
+bot.command("trending", async (ctx) => {
+  const l = getLang(ctxChatId(ctx));
+  const s = t[l];
+  const msg = await ctx.reply(s.loading);
+
+  const data = await api<PricesResponse>("/api/prices");
+  if (!data?.coins?.length) {
+    await safeApiEdit(ctxChatId(ctx), msg.message_id, s.error, mainKB(l));
+    return;
+  }
+
+  const sorted = [...data.coins].sort(
+    (a, b) => Math.abs(b.change24h ?? 0) - Math.abs(a.change24h ?? 0),
+  );
+  const gainers = sorted.filter((c) => (c.change24h ?? 0) > 0).slice(0, 5);
+  const losers = sorted.filter((c) => (c.change24h ?? 0) < 0).slice(0, 5);
+
+  let text = l === "zh" ? "🔥 *涨跌榜*\n\n" : "🔥 *Top Movers*\n\n";
+  if (gainers.length) {
+    text += l === "zh" ? "🟢 涨幅：\n" : "🟢 Gainers:\n";
+    for (const g of gainers) {
+      text +=
+        "  " +
+        esc(g.symbol.toUpperCase()) +
+        ": " +
+        fmtUSD(g.usdPrice) +
+        " \\(" +
+        fmtChg(g.change24h) +
+        "\\)\n";
+    }
+    text += "\n";
+  }
+  if (losers.length) {
+    text += l === "zh" ? "🔴 跌幅：\n" : "🔴 Losers:\n";
+    for (const lo of losers) {
+      text +=
+        "  " +
+        esc(lo.symbol.toUpperCase()) +
+        ": " +
+        fmtUSD(lo.usdPrice) +
+        " \\(" +
+        fmtChg(lo.change24h) +
+        "\\)\n";
+    }
+  }
+
+  await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
+});
+
+// ---------------------------------------------------------------------------
+// /ai <question> — one-shot question without walking through the chat menu
+// ---------------------------------------------------------------------------
+bot.command("ai", async (ctx) => {
+  const l = getLang(ctxChatId(ctx));
+  const s = t[l];
+  const question = ctx.match?.trim();
+
+  if (!question) {
+    await ctx.reply(
+      l === "zh"
+        ? "用法：/ai <问题>，例如 /ai 比特币前景如何？"
+        : "Usage: /ai <question>, e.g. /ai What is the Bitcoin outlook?",
+    );
+    return;
+  }
+
+  const msg = await ctx.reply(s.loading);
+  try {
+    const res = await fetch(API_BASE + "/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: question, history: [], locale: l }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) throw new Error("API " + res.status);
+
+    const data = (await res.json()) as AIChatResponse;
+    const answer = aiText(data)?.slice(0, 3500) ?? s.error;
+    await safeApiEdit(
+      ctxChatId(ctx),
+      msg.message_id,
+      "🤖 " + esc(answer) + s.aiDisclaimer,
+      mainKB(l),
+    );
+  } catch (err) {
+    console.error("AI command error:", err);
+    await safeApiEdit(ctxChatId(ctx), msg.message_id, s.error, mainKB(l));
+  }
+});
+
+// ---------------------------------------------------------------------------
+// /site — where everything lives
+// ---------------------------------------------------------------------------
+bot.command("site", async (ctx) => {
+  const l = getLang(ctxChatId(ctx));
+  const text =
+    l === "zh"
+      ? "🌐 *driftcrypto\\.fun*\n\n🔗 [官网](" +
+        SITE_URL +
+        ")\n🐦 [Twitter](https://twitter.com/driftcrypto)\n✈️ [Telegram](https://t.me/DriftcryptoBot)\n📊 [MCP 接口](" +
+        SITE_URL +
+        "/api/mcp/manifest)\n\n👑 会员方案与完整功能见官网\\。"
+      : "🌐 *driftcrypto\\.fun*\n\n🔗 [Website](" +
+        SITE_URL +
+        ")\n🐦 [Twitter](https://twitter.com/driftcrypto)\n✈️ [Telegram](https://t.me/DriftcryptoBot)\n📊 [MCP manifest](" +
+        SITE_URL +
+        "/api/mcp/manifest)\n\n👑 See the site for membership plans\\.";
+  await ctx.reply(text, {
+    parse_mode: "MarkdownV2",
+    reply_markup: mainKB(l),
+    link_preview_options: { is_disabled: true },
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Site link used by /site (kept next to the command that needs it)
+// ---------------------------------------------------------------------------
+const SITE_URL = "https://driftcrypto.fun";
+
+
 bot.command("lang", async (ctx) => {
-  const cur = getLang(ctx.chat.id);
+  const cur = getLang(ctxChatId(ctx));
   const nl: L = cur === "en" ? "zh" : "en";
-  setLang(ctx.chat.id, nl);
+  setLang(ctxChatId(ctx), nl);
   await ctx.reply(t[nl].langChanged, { parse_mode: "MarkdownV2", reply_markup: mainKB(nl) });
 });
 
@@ -273,7 +543,7 @@ bot.command("lang", async (ctx) => {
 // /price <coin>
 // ---------------------------------------------------------------------------
 bot.command("price", async (ctx) => {
-  const l = getLang(ctx.chat.id);
+  const l = getLang(ctxChatId(ctx));
   const coin = ctx.match?.trim().toLowerCase();
   if (!coin) {
     await ctx.reply(l === "zh" ? "用法：/price <币种>" : "Usage: /price <coin>");
@@ -282,29 +552,29 @@ bot.command("price", async (ctx) => {
   const msg = await ctx.reply(t[l].loading);
   const data = await api<PricesResponse>("/api/prices");
   if (!data?.coins) {
-    await ctx.api.editMessageText(ctx.chat.id, msg.message_id, t[l].error, { parse_mode: "MarkdownV2" });
+    await ctx.api.editMessageText(ctxChatId(ctx), msg.message_id, t[l].error, { parse_mode: "MarkdownV2" });
     return;
   }
   const found = data.coins.find(c => c.coinId === coin || c.symbol.toLowerCase() === coin || c.name.toLowerCase() === coin);
   if (!found) {
-    await ctx.api.editMessageText(ctx.chat.id, msg.message_id, t[l].priceNotFound, { parse_mode: "MarkdownV2" });
+    await ctx.api.editMessageText(ctxChatId(ctx), msg.message_id, t[l].priceNotFound, { parse_mode: "MarkdownV2" });
     return;
   }
   const text = l === "zh"
     ? `💰 *${esc(found.name)}* \\(${esc(found.symbol.toUpperCase())}\\)\n\n📈 价格：${fmtUSD(found.usdPrice)}\n📊 24h涨跌：${chgEmoji(found.change24h)} ${fmtChg(found.change24h)}\n💵 24h量：${fmtLarge(found.volume24h ?? 0)}\n🏦 市值：${fmtLarge(found.marketCap ?? 0)}\n\n👉 [在 driftcrypto\\.fun 查看](https://driftcrypto.fun#market)`
     : `💰 *${esc(found.name)}* \\(${esc(found.symbol.toUpperCase())}\\)\n\n📈 Price: ${fmtUSD(found.usdPrice)}\n📊 24h: ${chgEmoji(found.change24h)} ${fmtChg(found.change24h)}\n💵 Vol: ${fmtLarge(found.volume24h ?? 0)}\n🏦 MCap: ${fmtLarge(found.marketCap ?? 0)}\n\n👉 [View on driftcrypto\\.fun](https://driftcrypto.fun#market)`;
-  await safeApiEdit(ctx.chat.id, msg.message_id, text, mainKB(l));
+  await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
 
 // ---------------------------------------------------------------------------
 // /news
 // ---------------------------------------------------------------------------
 bot.command("news", async (ctx) => {
-  const l = getLang(ctx.chat.id);
+  const l = getLang(ctxChatId(ctx));
   const msg = await ctx.reply(t[l].loading);
   const data = await api<NewsResponse>("/api/news?num=8");
   if (!data?.items?.length) {
-    await ctx.api.editMessageText(ctx.chat.id, msg.message_id, t[l].noData, { parse_mode: "MarkdownV2" });
+    await ctx.api.editMessageText(ctxChatId(ctx), msg.message_id, t[l].noData, { parse_mode: "MarkdownV2" });
     return;
   }
   const se: Record<string, string> = { bullish: "🟢", bearish: "🔴", neutral: "⚪" };
@@ -313,18 +583,18 @@ bot.command("news", async (ctx) => {
     text += `${se[a.sentiment] ?? "📰"} [${esc(a.title)}](${a.url})\n`;
   }
   text += l === "zh" ? "\n👉 [更多新闻](https://driftcrypto\\.fun#dashboard)" : "\n👉 [More News](https://driftcrypto.fun#dashboard)";
-  await safeApiEdit(ctx.chat.id, msg.message_id, text, mainKB(l));
+  await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
 
 // ---------------------------------------------------------------------------
 // /feargreed
 // ---------------------------------------------------------------------------
 bot.command("feargreed", async (ctx) => {
-  const l = getLang(ctx.chat.id);
+  const l = getLang(ctxChatId(ctx));
   const msg = await ctx.reply(t[l].loading);
   const data = await api<FearGreedResponse>("/api/fear-greed");
   if (!data || data.value === undefined) {
-    await ctx.api.editMessageText(ctx.chat.id, msg.message_id, t[l].error, { parse_mode: "MarkdownV2" });
+    await ctx.api.editMessageText(ctxChatId(ctx), msg.message_id, t[l].error, { parse_mode: "MarkdownV2" });
     return;
   }
   const s = t[l];
@@ -336,18 +606,18 @@ bot.command("feargreed", async (ctx) => {
     }
   }
   text += l === "zh" ? "\n\n👉 [查看](https://driftcrypto\\.fun#dashboard)" : "\n\n👉 [View](https://driftcrypto.fun#dashboard)";
-  await safeApiEdit(ctx.chat.id, msg.message_id, text, mainKB(l));
+  await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
 
 // ---------------------------------------------------------------------------
 // /piaoshu
 // ---------------------------------------------------------------------------
 bot.command("piaoshu", async (ctx) => {
-  const l = getLang(ctx.chat.id);
+  const l = getLang(ctxChatId(ctx));
   const msg = await ctx.reply(t[l].loading);
   const data = await api<PiaoShuDailyResponse>("/api/piao-shu/daily?membership=free");
   if (!data) {
-    await ctx.api.editMessageText(ctx.chat.id, msg.message_id, t[l].error, { parse_mode: "MarkdownV2" });
+    await ctx.api.editMessageText(ctxChatId(ctx), msg.message_id, t[l].error, { parse_mode: "MarkdownV2" });
     return;
   }
   let text = l === "zh" ? "👑 *飘叔每日分析*\n\n" : "👑 *PiaoShu Daily Analysis*\n\n";
@@ -372,7 +642,7 @@ bot.command("piaoshu", async (ctx) => {
   if (data.minMembership && data.minMembership !== "free") {
     text += l === "zh" ? "🔒 需升级会员\n\n👉 [升级](https://driftcrypto\\.fun#membership)" : "🔒 Requires membership\n\n👉 [Upgrade](https://driftcrypto.fun#membership)";
   }
-  await safeApiEdit(ctx.chat.id, msg.message_id, text, mainKB(l));
+  await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
 
 // ===========================================================================
@@ -380,7 +650,7 @@ bot.command("piaoshu", async (ctx) => {
 // ===========================================================================
 bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
   const sec = ctx.match![1];
-  const l = getLang(ctx.chat.id);
+  const l = getLang(ctxChatId(ctx));
   const s = t[l];
 
   // Answer immediately (only once!)
@@ -396,7 +666,7 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
   }
   if (sec === "lang") {
     const nl: L = l === "en" ? "zh" : "en";
-    setLang(ctx.chat.id, nl);
+    setLang(ctxChatId(ctx), nl);
     await ctx.answerCallbackQuery();
     await safeEdit(ctx, t[nl].langChanged, mainKB(nl));
     return;
@@ -574,7 +844,7 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
 // ===========================================================================
 bot.callbackQuery(/^quick:(.+)$/, async (ctx) => {
   const topic = ctx.match![1];
-  const l = getLang(ctx.chat.id);
+  const l = getLang(ctxChatId(ctx));
   const s = t[l];
   const queries: Record<string, string> = {
     btc: l === "zh" ? "比特币前景如何？" : "What's the Bitcoin outlook?",
@@ -607,7 +877,7 @@ bot.callbackQuery(/^quick:(.+)$/, async (ctx) => {
 // FREE-FORM AI CHAT
 // ===========================================================================
 bot.on("message:text", async (ctx) => {
-  const l = getLang(ctx.chat.id);
+  const l = getLang(ctxChatId(ctx));
   const s = t[l];
   const text = ctx.message.text;
   if (text.length < 2 || text.startsWith("/")) return;
@@ -623,11 +893,11 @@ bot.on("message:text", async (ctx) => {
     if (!res.ok) throw new Error(`API ${res.status}`);
     const data = await res.json() as AIChatResponse;
     const answer = aiText(data)?.slice(0, 3500) ?? s.error;
-    await safeApiEdit(ctx.chat.id, msg.message_id, `🤖 ${esc(answer)}${s.aiDisclaimer}`, mainKB(l));
+    await safeApiEdit(ctxChatId(ctx), msg.message_id, `🤖 ${esc(answer)}${s.aiDisclaimer}`, mainKB(l));
   } catch (err) {
     console.error("Chat error:", err);
     try {
-      await safeApiEdit(ctx.chat.id, msg.message_id, s.error, mainKB(l));
+      await safeApiEdit(ctxChatId(ctx), msg.message_id, s.error, mainKB(l));
     } catch {}
   }
 });
@@ -666,3 +936,21 @@ bot.start({
     console.log(`📡 Polling...`);
   },
 });
+
+// ===========================================================================
+// COMMAND MENU + GRACEFUL SHUTDOWN
+// ===========================================================================
+// Registered after bot.start() so a Telegram outage cannot block polling.
+void registerCommandMenu();
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, async () => {
+    console.log("\n" + signal + " received — stopping bot...");
+    try {
+      await bot.stop();
+    } catch {
+      // nothing useful to do if the poller is already down
+    }
+    process.exit(0);
+  });
+}
