@@ -107,9 +107,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(response);
   } catch (error) {
     console.error('PiaoShu daily endpoint error:', error);
+
+    // A database outage — or an unconfigured DATABASE_URL on a fresh deploy —
+    // must not surface as a hard failure. The client already renders
+    // "no report yet" from hasReport:false, which is far more useful to a
+    // visitor than a 500. The real cause stays in the server logs.
     return NextResponse.json(
-      { error: 'Internal server error', hasReport: false },
-      { status: 500 }
+      {
+        hasReport: false,
+        reportDate: '',
+        title: '',
+        generatedAt: '',
+        minMembership: 'plus',
+        hasAccess: false,
+        error: 'Report store unavailable',
+        message: 'The report store is temporarily unavailable. Please try again later.',
+      },
+      { status: 200 },
     );
   }
 }
