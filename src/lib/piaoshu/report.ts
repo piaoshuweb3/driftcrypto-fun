@@ -1,3 +1,4 @@
+import { db } from '@/lib/db';
 import { chatComplete, webSearch } from '@/lib/ai/provider';
 
 // ---------------------------------------------------------------------------
@@ -413,4 +414,50 @@ export async function buildPiaoShuReport(reportDate?: string): Promise<BuiltRepo
     fullContent,
     minMembership: 'plus',
   };
+}
+
+/**
+ * Upsert a report into the store.
+ *
+ * Shared by the manual generator and the scheduled job, so the two can never
+ * drift into writing different field mappings.
+ */
+export async function storeReport(report: BuiltReport): Promise<string> {
+  const data = {
+    title: report.title,
+    radarData: JSON.stringify({
+      funding: report.fundingRadar,
+      upcoming: report.upcomingICO,
+      airdrops: report.airdropRadar,
+    }),
+    opportunityAnalysis: report.opportunityAnalysis,
+    dailyDigest: report.dailyDigest,
+    piaoshuCommentary: report.piaoshuCommentary,
+    marketOverview: JSON.stringify(report.marketOverview),
+    gainers: JSON.stringify(report.gainers),
+    losers: JSON.stringify(report.losers),
+    fundingRadar: JSON.stringify(report.fundingRadar),
+    upcomingICO: JSON.stringify(report.upcomingICO),
+    airdropRadar: JSON.stringify(report.airdropRadar),
+    fullContent: report.fullContent,
+    generatedAt: new Date(),
+    minMembership: report.minMembership,
+  };
+
+  const existing = await db.piaoShuReport.findUnique({
+    where: { reportDate: report.reportDate },
+  });
+
+  if (existing) {
+    await db.piaoShuReport.update({
+      where: { reportDate: report.reportDate },
+      data,
+    });
+    return existing.id;
+  }
+
+  const created = await db.piaoShuReport.create({
+    data: { reportDate: report.reportDate, ...data },
+  });
+  return created.id;
 }

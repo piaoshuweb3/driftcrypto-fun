@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { buildPiaoShuReport } from '@/lib/piaoshu/report';
+import { buildPiaoShuReport, storeReport } from '@/lib/piaoshu/report';
 
 // ---------------------------------------------------------------------------
 // POST /api/piao-shu/generate — build and store a PiaoShu daily report
@@ -50,38 +50,14 @@ export async function POST(req: NextRequest) {
     console.log('[PiaoShu Generate] Assembling report…');
     const report = await buildPiaoShuReport(today);
 
-    const data = {
-      title: report.title,
-      radarData: JSON.stringify({
-        funding: report.fundingRadar,
-        upcoming: report.upcomingICO,
-        airdrops: report.airdropRadar,
-      }),
-      opportunityAnalysis: report.opportunityAnalysis,
-      dailyDigest: report.dailyDigest,
-      piaoshuCommentary: report.piaoshuCommentary,
-      marketOverview: JSON.stringify(report.marketOverview),
-      gainers: JSON.stringify(report.gainers),
-      losers: JSON.stringify(report.losers),
-      fundingRadar: JSON.stringify(report.fundingRadar),
-      upcomingICO: JSON.stringify(report.upcomingICO),
-      airdropRadar: JSON.stringify(report.airdropRadar),
-      fullContent: report.fullContent,
-      generatedAt: new Date(),
-    };
+    const id = await storeReport(report);
 
-    const saved = existing
-      ? await db.piaoShuReport.update({ where: { reportDate: today }, data })
-      : await db.piaoShuReport.create({
-          data: { reportDate: today, minMembership: report.minMembership, ...data },
-        });
-
-    console.log('[PiaoShu Generate] Stored report', saved.id);
+    console.log('[PiaoShu Generate] Stored report', id);
 
     return NextResponse.json({
       message: 'Report generated successfully',
       reportDate: today,
-      id: saved.id,
+      id,
     });
   } catch (error) {
     console.error('PiaoShu generate endpoint error:', error);
