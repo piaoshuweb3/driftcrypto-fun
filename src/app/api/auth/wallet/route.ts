@@ -1,73 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { issueWalletNonce } from '@/lib/wallet-auth';
 
 // ---------------------------------------------------------------------------
-// POST /api/auth/wallet — Wallet address authentication (MVP)
+// POST /api/auth/wallet — mint a single-use sign-in challenge
 // ---------------------------------------------------------------------------
-// For MVP: validates wallet address format, creates/finds user, returns user info.
-// Full implementation would include nonce signing & verification.
+// This endpoint does NOT authenticate anyone by itself. It only issues a
+// one-time nonce and returns the exact message the wallet must sign.
+//
+// The signature is verified server-side inside NextAuth's CredentialsProvider
+// (src/lib/auth.ts → verifyWalletSignature) when the client calls
+// `signIn('wallet', { address, signature, message })`. A bare address is no
+// longer sufficient to obtain a session.
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { address } = body as { address?: string };
+    const body = await request.json().catch(() => ({}));
+    const { address } = body as { address?: unknown };
 
-    // Validate address
-    if (!address || typeof address !== 'string') {
-      return NextResponse.json(
-        { error: 'Wallet address is required' },
-        { status: 400 },
-      );
-    }
+    const challenge = await issueWalletNonce(address);
 
-    const trimmedAddress = address.trim().toLowerCase();
-
-    // Basic Ethereum address validation (0x + 40 hex chars, case-insensitive)
-    if (!/^0x[a-fA-F0-9]{40}$/.test(trimmedAddress)) {
-      return NextResponse.json(
-        { error: 'Invalid wallet address format' },
-        { status: 400 },
-      );
-    }
-
-    // Check if user with this wallet address already exists
-    let user = await db.user.findUnique({
-      where: { walletAddress: trimmedAddress },
-    });
-
-    if (!user) {
-      // Create a new user with wallet address
-      user = await db.user.create({
-        data: {
-          name: `Wallet ${trimmedAddress.slice(0, 6)}...${trimmedAddress.slice(-4)}`,
-          walletAddress: trimmedAddress,
-          role: 'user',
-          membership: 'free',
-        },
-      });
-
-      // Create an account entry for the wallet provider
-      await db.account.create({
-        data: {
-          userId: user.id,
-          type: 'wallet',
-          provider: 'wallet',
-          providerAccountId: trimmedAddress,
-        },
-      });
-    }
-
-    return NextResponse.json({
-      success: true,
-      user: {
-        id: user.id,
-        name: user.name,
-        walletAddress: user.walletAddress,
-        membership: user.membership,
-      },
-    });
+    return NextResponse.json({ success: true, ...challenge });
   } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Failed to create challenge';
+
+    // A malformed address is a client error, not a server fault.
+    if (message === 'Invalid wallet address format') {
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
     console.error('[/api/auth/wallet] Error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

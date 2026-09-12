@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import Image from 'next/image';
 import {
   Wallet,
@@ -186,7 +187,7 @@ async function fetchPrices(): Promise<CoinData[]> {
 /*  Animation Variants                                                 */
 /* ------------------------------------------------------------------ */
 
-const cardVariants = {
+const cardVariants: Variants = {
   hidden: { opacity: 0, y: 20, scale: 0.95 },
   visible: (i: number) => ({
     opacity: 1,
@@ -196,7 +197,7 @@ const cardVariants = {
   }),
 };
 
-const rowVariants = {
+const rowVariants: Variants = {
   hidden: { opacity: 0, x: -12 },
   visible: (i: number) => ({
     opacity: 1,
@@ -206,7 +207,7 @@ const rowVariants = {
   exit: { opacity: 0, x: 12, transition: { duration: 0.15 } },
 };
 
-const fadeInUp = {
+const fadeInUp: Variants = {
   hidden: { opacity: 0, y: 16 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
 };

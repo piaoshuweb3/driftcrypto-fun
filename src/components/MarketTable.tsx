@@ -30,6 +30,7 @@ import {
 } from '@/components/ui/select';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import { useI18n } from '@/lib/i18n';
 
 /* ------------------------------------------------------------------ */
@@ -170,7 +171,7 @@ export default function MarketTable() {
   };
 
   /* ---- Row animation variants ---- */
-  const rowVariants = {
+  const rowVariants: Variants = {
     hidden: { opacity: 0, y: 12 },
     visible: (i: number) => ({
       opacity: 1,

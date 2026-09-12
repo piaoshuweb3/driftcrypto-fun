@@ -62,6 +62,15 @@ interface SignInDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+/** Minimal EIP-1193 provider shape — what MetaMask / Rabby / Coinbase inject. */
+interface InjectedProvider {
+  request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+}
+
+function getInjectedProvider(): InjectedProvider | undefined {
+  return (window as unknown as { ethereum?: InjectedProvider }).ethereum;
+}
+
 // ---------------------------------------------------------------------------
 // SignInDialog Component
 // ---------------------------------------------------------------------------
@@ -93,27 +102,75 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
     }
   };
 
+  /**
+   * Wallet sign-in = prove key ownership, not just knowledge of an address.
+   *
+   * 1. take the address from the browser wallet (or the manual input)
+   * 2. ask the server for a single-use nonce challenge
+   * 3. sign that challenge with `personal_sign`
+   * 4. hand address + message + signature to NextAuth, which verifies the
+   *    signature server-side (src/lib/wallet-auth.ts) before issuing a session
+   */
   const handleWalletSignIn = async () => {
-    if (!walletAddress.trim()) return;
-
-    // Validate address format (basic check)
-    const address = walletAddress.trim();
-    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
-      toast.error('Invalid wallet address format. Must be 0x... (42 characters)');
-      return;
-    }
+    let address = walletAddress.trim();
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/wallet', {
+      const wallet = getInjectedProvider();
+
+      if (wallet) {
+        // Prompt the wallet to connect and use the account it returns.
+        const accounts = (await wallet.request({
+          method: 'eth_requestAccounts',
+        })) as string[];
+        if (accounts?.[0]) {
+          address = accounts[0];
+          setWalletAddress(address);
+        }
+      }
+
+      if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+        throw new Error(
+          'Invalid wallet address format. Must be 0x... (42 characters)',
+        );
+      }
+
+      if (!wallet) {
+        throw new Error(
+          'No browser wallet detected. An address alone cannot prove ownership — please install MetaMask or another EIP-1193 wallet.',
+        );
+      }
+
+      // ── 1. Single-use challenge from the server ────────────────────
+      const challengeRes = await fetch('/api/auth/wallet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address }),
       });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Wallet authentication failed');
+      if (!challengeRes.ok) {
+        const data = await challengeRes.json().catch(() => ({}));
+        throw new Error(data.error || 'Failed to create sign-in challenge');
+      }
+
+      const { message } = (await challengeRes.json()) as { message: string };
+
+      // ── 2. Sign it with the wallet (EIP-191 personal_sign) ─────────
+      const signature = (await wallet.request({
+        method: 'personal_sign',
+        params: [message, address],
+      })) as string;
+
+      // ── 3. Exchange the signature for a session ────────────────────
+      const result = await signIn('wallet', {
+        address,
+        signature,
+        message,
+        redirect: false,
+      });
+
+      if (!result || result.error) {
+        throw new Error('Signature verification failed');
       }
 
       toast.success(t('auth.walletConnected'));
@@ -244,7 +301,7 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
                   <Button
                     className="flex-1 bg-gold hover:bg-gold/90 text-[#0a0a0f] font-semibold shadow-lg shadow-gold/20"
                     onClick={handleWalletSignIn}
-                    disabled={loading || !walletAddress.trim()}
+                    disabled={loading}
                   >
                     {loading ? t('auth.signingIn') : t('auth.verifyAndSignIn')}
                   </Button>

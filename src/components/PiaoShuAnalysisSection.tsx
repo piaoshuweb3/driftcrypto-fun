@@ -425,7 +425,7 @@ function CoinList({ coins, type }: { coins: CoinEntry[]; type: 'gainers' | 'lose
 // Radar Section (funding / ICO / airdrop)
 // ---------------------------------------------------------------------------
 
-function RadarCard<T extends Record<string, unknown>>({
+function RadarCard<T extends object>({
   title,
   icon: Icon,
   items,

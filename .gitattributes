@@ -1,0 +1,21 @@
+# Normalize line endings: store LF in the repository on every platform, so a
+# machine's core.autocrlf setting can never fabricate a whole-tree diff again.
+* text=auto eol=lf
+
+# Binary assets — never touch their bytes
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.icns binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.pdf binary
+*.zip binary
+*.gz binary
+*.db binary
+*.db-journal binary

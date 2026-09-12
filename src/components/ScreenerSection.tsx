@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import type { Variants } from 'framer-motion';
 import {
   Search,
   ArrowUp,
@@ -128,7 +129,7 @@ const VC_FIRMS: VCFirm[] = [
 /*  Animation Variants                                                 */
 /* ------------------------------------------------------------------ */
 
-const firmCardVariants = {
+const firmCardVariants: Variants = {
   hidden: { opacity: 0, scale: 0.92 },
   visible: (i: number) => ({
     opacity: 1,
@@ -137,7 +138,7 @@ const firmCardVariants = {
   }),
 };
 
-const rowVariants = {
+const rowVariants: Variants = {
   hidden: { opacity: 0, x: -16 },
   visible: (i: number) => ({
     opacity: 1,
@@ -147,7 +148,7 @@ const rowVariants = {
   exit: { opacity: 0, x: 16, transition: { duration: 0.15 } },
 };
 
-const panelVariants = {
+const panelVariants: Variants = {
   hidden: { opacity: 0, y: 20, height: 0 },
   visible: {
     opacity: 1,

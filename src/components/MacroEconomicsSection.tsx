@@ -260,7 +260,7 @@ function CorrelationCard({
   index,
   t,
 }: {
-  corr: (typeof correlations)[0];
+  corr: (typeof correlations)[number];
   index: number;
   t: (key: string) => string;
 }) {
@@ -491,7 +491,7 @@ function RiskBar({
   index,
   t,
 }: {
-  item: (typeof riskBreakdown)[0];
+  item: (typeof riskBreakdown)[number];
   index: number;
   t: (key: string) => string;
 }) {

@@ -319,7 +319,7 @@ function TradingViewWidget({ symbol }: { symbol: string }) {
     script.async = true;
     script.onload = () => {
       // TradingView is loaded via external script
-      const TV = (window as Record<string, unknown>).TradingView as
+      const TV = (window as unknown as Record<string, unknown>).TradingView as
         | { widget: new (config: Record<string, unknown>) => { remove: () => void } }
         | undefined;
       if (TV && containerRef.current) {

@@ -3,6 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import TwitterProvider from "next-auth/providers/twitter";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { db } from "@/lib/db";
+import { verifyWalletSignature } from "@/lib/wallet-auth";
 
 // ---------------------------------------------------------------------------
 // NextAuth Configuration for driftcrypto.fun
@@ -78,72 +79,32 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Wallet address, signature, and message are required");
         }
 
-        const address = credentials.address;
-        const signature = credentials.signature;
-        const message = credentials.message;
+        const { signature, message } = credentials;
 
-        // ── Basic validation ──────────────────────────────────────────
-        // Verify the message contains our expected prefix and a nonce
-        if (!message.startsWith("Sign this message to verify your identity on driftcrypto.fun")) {
-          throw new Error("Invalid message format");
-        }
-
-        // Extract nonce from message for basic replay protection
-        const nonceMatch = message.match(/Nonce: ([^\n]+)/);
-        if (!nonceMatch) {
-          throw new Error("Invalid nonce in message");
-        }
-
-        // ── Signature verification (MVP) ──────────────────────────────
-        // For the MVP, we perform basic validation:
-        // - The message format is correct
-        // - The nonce exists
-        // - The signature is non-empty and looks like a hex string
-        //
-        // Production would need ethers.js or viem to recover the signer
-        // address from the signature and verify it matches `address`.
-        if (!signature || signature.length < 64) {
-          throw new Error("Invalid signature");
-        }
-
-        // Basic hex check for Ethereum-style signatures
-        const isHexSignature = /^0x[0-9a-fA-F]+$/.test(signature);
-        const isHexAddress = /^0x[0-9a-fA-F]{40}$/.test(address);
-
-        if (!isHexAddress) {
-          throw new Error("Invalid wallet address format");
-        }
-
-        if (!isHexSignature) {
-          throw new Error("Invalid signature format");
-        }
+        // ── Cryptographic signature verification ──────────────────────
+        // verifyWalletSignature() proves the caller controls the private key
+        // of `address` before any user record or session is created. It checks
+        // the address format, the domain-separation prefix, that the nonce was
+        // issued for this address and has not expired, and then verifies the
+        // EIP-191 signature with viem. The nonce is consumed on success, so a
+        // captured signature cannot be replayed.
+        const { address: verifiedAddress } = await verifyWalletSignature({
+          address: credentials.address,
+          signature,
+          message,
+        });
 
         // ── Find or create user ───────────────────────────────────────
         let user = await db.user.findUnique({
-          where: { walletAddress: address },
+          where: { walletAddress: verifiedAddress },
         });
 
         if (!user) {
-          // Check if there's a pending nonce we stored earlier
-          const storedNonce = await db.verificationToken.findFirst({
-            where: {
-              identifier: `wallet:${address}`,
-              token: nonceMatch[1],
-            },
-          });
-
-          // If we have a stored nonce, delete it (one-time use)
-          if (storedNonce) {
-            await db.verificationToken.delete({
-              where: { token: nonceMatch[1] },
-            });
-          }
-
-          // Create new user with wallet address
+          // Create new user with the *verified* wallet address
           user = await db.user.create({
             data: {
-              walletAddress: address,
-              name: `${address.slice(0, 6)}...${address.slice(-4)}`,
+              walletAddress: verifiedAddress,
+              name: `${verifiedAddress.slice(0, 6)}...${verifiedAddress.slice(-4)}`,
               role: "user",
               membership: "free",
             },
@@ -155,7 +116,7 @@ export const authOptions: NextAuthOptions = {
               userId: user.id,
               type: "wallet",
               provider: "wallet",
-              providerAccountId: address,
+              providerAccountId: verifiedAddress,
             },
           });
         }
@@ -167,7 +128,7 @@ export const authOptions: NextAuthOptions = {
           image: user.image,
           role: user.role,
           membership: user.membership,
-          walletAddress: user.walletAddress,
+          walletAddress: user.walletAddress ?? undefined,
         };
       },
     }),
@@ -194,7 +155,7 @@ export const authOptions: NextAuthOptions = {
 
   // ── Callbacks ────────────────────────────────────────────────────────
   callbacks: {
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       // ── OAuth providers (Google, Twitter) ──────────────────────────
       if (account?.provider === "google" || account?.provider === "twitter") {
         const providerId = account.provider;
@@ -216,7 +177,7 @@ export const authOptions: NextAuthOptions = {
           user.id = existingAccount.user.id;
           user.role = existingAccount.user.role;
           user.membership = existingAccount.user.membership;
-          user.walletAddress = existingAccount.user.walletAddress;
+          user.walletAddress = existingAccount.user.walletAddress ?? undefined;
 
           // Update user profile info if available
           if (user.name || user.email || user.image) {
@@ -272,7 +233,7 @@ export const authOptions: NextAuthOptions = {
         user.id = dbUser.id;
         user.role = dbUser.role;
         user.membership = dbUser.membership;
-        user.walletAddress = dbUser.walletAddress;
+        user.walletAddress = dbUser.walletAddress ?? undefined;
 
         return true;
       }
@@ -287,9 +248,9 @@ export const authOptions: NextAuthOptions = {
       // Initial sign in — user object is available
       if (user) {
         token.id = user.id;
-        token.role = (user as any).role ?? "user";
-        token.membership = (user as any).membership ?? "free";
-        token.walletAddress = (user as any).walletAddress ?? null;
+        token.role = user.role ?? "user";
+        token.membership = user.membership ?? "free";
+        token.walletAddress = user.walletAddress ?? undefined;
       }
 
       // On session update trigger, refresh from DB
@@ -300,7 +261,7 @@ export const authOptions: NextAuthOptions = {
         if (dbUser) {
           token.role = dbUser.role;
           token.membership = dbUser.membership;
-          token.walletAddress = dbUser.walletAddress;
+          token.walletAddress = dbUser.walletAddress ?? undefined;
         }
       }
 

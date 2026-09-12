@@ -23,12 +23,15 @@ import { useI18n } from '@/lib/i18n';
 // Animation variants
 // ---------------------------------------------------------------------------
 
+/** Cubic-bezier easing must be a 4-number tuple, not number[]. */
+const EASE: [number, number, number, number] = [0.25, 0.46, 0.45, 0.94];
+
 const fadeInUp = {
   hidden: { opacity: 0, y: 30 },
   visible: (i: number = 0) => ({
     opacity: 1,
     y: 0,
-    transition: { duration: 0.6, delay: i * 0.1, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.6, delay: i * 0.1, ease: EASE },
   }),
 };
 
@@ -46,7 +49,7 @@ const staggerChild = {
     opacity: 1,
     y: 0,
     scale: 1,
-    transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] },
+    transition: { duration: 0.5, ease: EASE },
   },
 };
 

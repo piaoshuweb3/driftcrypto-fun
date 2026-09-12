@@ -86,9 +86,9 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background grid-pattern">
-      <Header activeSection={activeSection} onSectionChange={setActiveSection} />
+      <Header activeSection={activeSection} onSectionChange={(section: string) => setActiveSection(section as SectionId)} />
       <main className="flex-1 pt-16">
-        {activeSection === 'dashboard' && <DashboardSection onSectionChange={setActiveSection} />}
+        {activeSection === 'dashboard' && <DashboardSection onSectionChange={(section: string) => setActiveSection(section as SectionId)} />}
         {activeSection === 'market' && <MarketSection />}
         {activeSection === 'portfolio' && <PortfolioSection />}
         {activeSection === 'screener' && <ScreenerSection />}
@@ -96,7 +96,7 @@ export default function Home() {
         {activeSection === 'nft' && <NFTSection />}
         {activeSection === 'piao-shu' && <PiaoShuAnalysisSection />}
         {activeSection === 'membership' && <MembershipSection />}
-        {activeSection === 'ai-analysis' && <AIAnalysisSection onSectionChange={setActiveSection} />}
+        {activeSection === 'ai-analysis' && <AIAnalysisSection onSectionChange={(section: string) => setActiveSection(section as SectionId)} />}
         {activeSection === 'technical-analysis' && <TechnicalAnalysisSection />}
         {activeSection === 'sentiment' && <SentimentSection />}
         {activeSection === 'enhanced-predictions' && <PredictionsSection />}
@@ -388,9 +388,9 @@ function TradingViewWidget() {
     script.src = 'https://s3.tradingview.com/tv.js';
     script.async = true;
     script.onload = () => {
-      const w = window as Record<string, unknown>;
+      const w = window as unknown as Record<string, unknown>;
       if (w.TradingView) {
-        new (w.TradingView as Record<string, unknown>).widget({
+        new ((w.TradingView as { widget: new (config: Record<string, unknown>) => unknown }).widget)({
           autosize: true,
           symbol: `BINANCE:${symbol}`,
           interval: 'D',
