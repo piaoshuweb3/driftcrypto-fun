@@ -529,7 +529,7 @@ bot.command("site", async (ctx) => {
 // ---------------------------------------------------------------------------
 // Site link used by /site (kept next to the command that needs it)
 // ---------------------------------------------------------------------------
-const SITE_URL = "https://driftcrypto.fun";
+const SITE_URL = process.env.DRIFTCRYPTO_SITE_URL ?? API_BASE;
 
 
 bot.command("lang", async (ctx) => {
@@ -561,8 +561,8 @@ bot.command("price", async (ctx) => {
     return;
   }
   const text = l === "zh"
-    ? `💰 *${esc(found.name)}* \\(${esc(found.symbol.toUpperCase())}\\)\n\n📈 价格：${fmtUSD(found.usdPrice)}\n📊 24h涨跌：${chgEmoji(found.change24h)} ${fmtChg(found.change24h)}\n💵 24h量：${fmtLarge(found.volume24h ?? 0)}\n🏦 市值：${fmtLarge(found.marketCap ?? 0)}\n\n👉 [在 driftcrypto\\.fun 查看](https://driftcrypto.fun#market)`
-    : `💰 *${esc(found.name)}* \\(${esc(found.symbol.toUpperCase())}\\)\n\n📈 Price: ${fmtUSD(found.usdPrice)}\n📊 24h: ${chgEmoji(found.change24h)} ${fmtChg(found.change24h)}\n💵 Vol: ${fmtLarge(found.volume24h ?? 0)}\n🏦 MCap: ${fmtLarge(found.marketCap ?? 0)}\n\n👉 [View on driftcrypto\\.fun](https://driftcrypto.fun#market)`;
+    ? `💰 *${esc(found.name)}* \\(${esc(found.symbol.toUpperCase())}\\)\n\n📈 价格：${fmtUSD(found.usdPrice)}\n📊 24h涨跌：${chgEmoji(found.change24h)} ${fmtChg(found.change24h)}\n💵 24h量：${fmtLarge(found.volume24h ?? 0)}\n🏦 市值：${fmtLarge(found.marketCap ?? 0)}\n\n👉 [在 driftcrypto\\.fun 查看](${SITE_URL}#market)`
+    : `💰 *${esc(found.name)}* \\(${esc(found.symbol.toUpperCase())}\\)\n\n📈 Price: ${fmtUSD(found.usdPrice)}\n📊 24h: ${chgEmoji(found.change24h)} ${fmtChg(found.change24h)}\n💵 Vol: ${fmtLarge(found.volume24h ?? 0)}\n🏦 MCap: ${fmtLarge(found.marketCap ?? 0)}\n\n👉 [View on driftcrypto\\.fun](${SITE_URL}#market)`;
   await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
 
@@ -582,7 +582,7 @@ bot.command("news", async (ctx) => {
   for (const a of data.items.slice(0, 8)) {
     text += `${se[a.sentiment] ?? "📰"} [${esc(a.title)}](${a.url})\n`;
   }
-  text += l === "zh" ? "\n👉 [更多新闻](https://driftcrypto\\.fun#dashboard)" : "\n👉 [More News](https://driftcrypto.fun#dashboard)";
+  text += l === "zh" ? `\n👉 [更多新闻](${SITE_URL}#dashboard)` : `\n👉 [More News](${SITE_URL}#dashboard)`;
   await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
 
@@ -605,7 +605,7 @@ bot.command("feargreed", async (ctx) => {
       text += `\n  ${h.recordedAt?.slice(5, 10) ?? "—"}: ${escNum(h.value)} \\(${fgLabel(h.label, l)}\\)`;
     }
   }
-  text += l === "zh" ? "\n\n👉 [查看](https://driftcrypto\\.fun#dashboard)" : "\n\n👉 [View](https://driftcrypto.fun#dashboard)";
+  text += l === "zh" ? `\n\n👉 [查看](${SITE_URL}#dashboard)` : `\n\n👉 [View](${SITE_URL}#dashboard)`;
   await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
 
@@ -640,7 +640,7 @@ bot.command("piaoshu", async (ctx) => {
     text += "\n";
   }
   if (data.minMembership && data.minMembership !== "free") {
-    text += l === "zh" ? "🔒 需升级会员\n\n👉 [升级](https://driftcrypto\\.fun#membership)" : "🔒 Requires membership\n\n👉 [Upgrade](https://driftcrypto.fun#membership)";
+    text += l === "zh" ? `🔒 需升级会员\n\n👉 [升级](${SITE_URL}#membership)` : `🔒 Requires membership\n\n👉 [Upgrade](${SITE_URL}#membership)`;
   }
   await safeApiEdit(ctxChatId(ctx), msg.message_id, text, mainKB(l));
 });
@@ -648,6 +648,287 @@ bot.command("piaoshu", async (ctx) => {
 // ===========================================================================
 // CALLBACK QUERIES — Navigation
 // ===========================================================================
+// ===========================================================================
+// SECTION RENDERERS
+// ===========================================================================
+// Every /more entry is backed by live data from the same APIs the website
+// uses. Sections whose state lives in the browser say so and fall back to
+// market data rather than pretending to have data they cannot see.
+// ===========================================================================
+
+function siteLink(l: L, hash: string, zhText: string, enText: string): string {
+  const label = l === "zh" ? zhText : enText;
+  return "\n\n👉 [" + label + "](" + SITE_URL + "#" + hash + ")";
+}
+
+type PriceMode = "cap" | "volume" | "momentum";
+
+/**
+ * Shared renderer for the many sections that are ultimately a ranked list of
+ * coins: portfolio reference, screener, microstructure, trending.
+ */
+async function priceList(
+  l: L,
+  headerZh: string,
+  headerEn: string,
+  limit: number,
+  mode: PriceMode,
+): Promise<string | null> {
+  const data = await api<PricesResponse>("/api/prices");
+  if (!data?.coins?.length) return null;
+
+  let coins = [...data.coins];
+  if (mode === "volume") {
+    coins = coins
+      .filter((c) => (c.volume24h ?? 0) > 0)
+      .sort((a, b) => (b.volume24h ?? 0) - (a.volume24h ?? 0));
+  } else if (mode === "momentum") {
+    coins = coins.sort(
+      (a, b) => Math.abs(b.change24h ?? 0) - Math.abs(a.change24h ?? 0),
+    );
+  }
+
+  let text = (l === "zh" ? headerZh : headerEn) + "\n\n";
+  for (const c of coins.slice(0, limit)) {
+    text +=
+      chgEmoji(c.change24h) +
+      " " +
+      esc(c.symbol.toUpperCase().padEnd(7)) +
+      " " +
+      fmtUSD(c.usdPrice) +
+      " \\(" +
+      fmtChg(c.change24h) +
+      "\\)" +
+      (mode === "volume" ? " · " + fmtLarge(c.volume24h ?? 0) : "") +
+      "\n";
+  }
+  return text;
+}
+
+/** Ask the site's AI endpoint a one-off question. */
+async function aiAsk(l: L, question: string): Promise<string | null> {
+  try {
+    const res = await fetch(API_BASE + "/api/ai/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: question, history: [], locale: l }),
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as AIChatResponse;
+    return aiText(data);
+  } catch (err) {
+    console.error("aiAsk failed:", err);
+    return null;
+  }
+}
+
+const SECTION_RENDERERS: Record<string, (l: L) => Promise<string | null>> = {
+  // ── Portfolio: holdings are stored in the browser ──────────────────────
+  portfolio: async (l) => {
+    const t = await priceList(
+      l,
+      "💼 *投资组合*\n\n持仓数据保存在浏览器本地，请在网站查看。当前行情参考：",
+      "💼 *Portfolio*\n\nHoldings live in your browser — view them on the site. Market reference:",
+      8,
+      "cap",
+    );
+    return t ? t + siteLink(l, "portfolio", "查看我的投资组合", "Open my portfolio") : null;
+  },
+
+  // ── Screener: the site filters by VC holdings, we rank by activity ─────
+  screener: async (l) => {
+    const t = await priceList(
+      l,
+      "🔍 *VC 持仓筛选器*\n\n按 24h 成交量排列的活跃币种（完整筛选条件见网站）：",
+      "🔍 *VC Token Screener*\n\nMost actively traded coins by 24h volume (full filters on the site):",
+      10,
+      "volume",
+    );
+    return t ? t + siteLink(l, "screener", "打开筛选器", "Open the screener") : null;
+  },
+
+  // ── AI analysis: same digest the site's dashboard shows ───────────────
+  "ai-analysis": async (l) => {
+    const d = await api<AIDigestResponse>("/api/ai/digest");
+    if (!d?.digest) return null;
+    const body = d.digest.slice(0, 1200);
+    return (
+      (l === "zh" ? "🧠 *AI 分析*\n\n" : "🧠 *AI Analysis*\n\n") +
+      esc(body) +
+      (d.digest.length > 1200 ? "\\.\\.\\." : "") +
+      siteLink(l, "ai-analysis", "查看完整分析", "Read the full analysis")
+    );
+  },
+
+  // ── Technical analysis: momentum read from live prices ────────────────
+  "technical-analysis": async (l) => {
+    const data = await api<PricesResponse>("/api/prices");
+    if (!data?.coins?.length) return null;
+
+    let text =
+      l === "zh"
+        ? "📈 *技术分析*\n\n主要资产动量（24h）：\n\n"
+        : "📈 *Technical Analysis*\n\nMomentum across majors (24h):\n\n";
+
+    for (const c of data.coins.slice(0, 8)) {
+      const chg = c.change24h ?? 0;
+      const trend =
+        chg > 3
+          ? l === "zh"
+            ? "强势"
+            : "strong"
+          : chg < -3
+            ? l === "zh"
+              ? "承压"
+              : "weak"
+            : l === "zh"
+              ? "震荡"
+              : "flat";
+      text +=
+        chgEmoji(c.change24h) +
+        " " +
+        esc(c.symbol.toUpperCase().padEnd(7)) +
+        fmtChg(c.change24h) +
+        " · " +
+        trend +
+        "\n";
+    }
+    return text + siteLink(l, "technical-analysis", "查看完整图表与指标", "Open charts and indicators");
+  },
+
+  // ── Predictions: AI, same endpoint the site's section calls ───────────
+  predictions: async (l) => {
+    const answer = await aiAsk(
+      l,
+      l === "zh"
+        ? "给出未来 7 天主要加密资产（BTC/ETH）的走势预测，说明关键价位和理由，并给出置信度。"
+        : "Give a 7-day outlook for BTC and ETH with key levels, reasoning and a confidence score.",
+    );
+    if (!answer) return null;
+    return (
+      (l === "zh" ? "🔮 *增强预测*\n\n" : "🔮 *Enhanced Predictions*\n\n") +
+      esc(answer.slice(0, 1500)) +
+      siteLink(l, "predictions", "查看预测详情", "Open predictions")
+    );
+  },
+
+  // ── Market analysis: AI ───────────────────────────────────────────────
+  "market-analysis": async (l) => {
+    const answer = await aiAsk(
+      l,
+      l === "zh"
+        ? "分析当前加密市场的整体趋势、资金流向与风险，给出明确的方向判断。"
+        : "Analyse the current crypto market: trend, flows and risk. Give a clear directional view.",
+    );
+    if (!answer) return null;
+    return (
+      (l === "zh" ? "📊 *市场分析*\n\n" : "📊 *Market Analysis*\n\n") +
+      esc(answer.slice(0, 1500)) +
+      siteLink(l, "market-analysis", "查看完整分析", "Open the full analysis")
+    );
+  },
+
+  // ── Correlations: relative moves across majors ────────────────────────
+  correlations: async (l) => {
+    const data = await api<PricesResponse>("/api/prices");
+    if (!data?.coins?.length) return null;
+
+    const majors = data.coins.slice(0, 8);
+    const avg =
+      majors.reduce((sum, c) => sum + (c.change24h ?? 0), 0) / majors.length;
+
+    let text =
+      l === "zh"
+        ? "🔗 *跨资产相关性*\n\n与大盘平均走势对比（24h）：\n\n"
+        : "🔗 *Cross-Asset Correlations*\n\nVersus the majors' average move (24h):\n\n";
+
+    for (const c of majors) {
+      const delta = (c.change24h ?? 0) - avg;
+      const rel =
+        delta > 1
+          ? l === "zh"
+            ? "强于大盘"
+            : "outperforming"
+          : delta < -1
+            ? l === "zh"
+              ? "弱于大盘"
+              : "underperforming"
+            : l === "zh"
+              ? "同步"
+              : "in line";
+      text +=
+        esc(c.symbol.toUpperCase().padEnd(7)) +
+        fmtChg(c.change24h) +
+        " · " +
+        rel +
+        "\n";
+    }
+    text +=
+      (l === "zh" ? "\n大盘平均：" : "\nMajors average: ") + fmtChg(avg);
+    return text + siteLink(l, "correlations", "查看相关性热力图", "Open the correlation heatmap");
+  },
+
+  // ── Microstructure: liquidity ranked by volume ────────────────────────
+  microstructure: async (l) => {
+    const t = await priceList(
+      l,
+      "🔬 *市场微观结构*\n\n按 24h 成交量观察流动性与资金流向：",
+      "🔬 *Market Microstructure*\n\nLiquidity and flow, ranked by 24h volume:",
+      10,
+      "volume",
+    );
+    return t ? t + siteLink(l, "microstructure", "查看订单簿深度", "View order-book depth") : null;
+  },
+
+  // ── Batch analysis: multi-coin snapshot ───────────────────────────────
+  "batch-analysis": async (l) => {
+    const data = await api<PricesResponse>("/api/prices");
+    if (!data?.coins?.length) return null;
+
+    let text =
+      l === "zh"
+        ? "📑 *批量分析*\n\n前 10 币种（价格 / 24h / 市值）：\n\n"
+        : "📑 *Batch Analysis*\n\nTop 10 (price / 24h / mcap):\n\n";
+
+    for (const c of data.coins.slice(0, 10)) {
+      text +=
+        chgEmoji(c.change24h) +
+        " " +
+        esc(c.symbol.toUpperCase().padEnd(7)) +
+        fmtUSD(c.usdPrice) +
+        " · " +
+        fmtChg(c.change24h) +
+        " · " +
+        fmtLarge(c.marketCap ?? 0) +
+        "\n";
+    }
+    return text + siteLink(l, "batch-analysis", "批量分析更多币种", "Analyse more coins");
+  },
+
+  // ── Prediction accuracy: needs stored history, which we do not have ───
+  "prediction-accuracy": async (l) => {
+    return l === "zh"
+      ? "🎯 *预测准确率*\n\n该栏目依赖历史预测记录，目前仅在网站前端计算展示。\n\n👉 [查看准确率统计](" +
+          SITE_URL +
+          "#prediction-accuracy)"
+      : "🎯 *Prediction Accuracy*\n\nThis section is computed in the browser from stored predictions.\n\n👉 [View accuracy stats](" +
+          SITE_URL +
+          "#prediction-accuracy)";
+  },
+
+  // ── NFT: launching later, nothing to fetch ────────────────────────────
+  nft: async (l) => {
+    return l === "zh"
+      ? "🖼 *NFT*\n\nAI 驱动的数字藏品，即将上线。\n\n👉 [加入等待名单](" +
+          SITE_URL +
+          "#nft)"
+      : "🖼 *NFT*\n\nAI-driven digital collectibles, launching soon.\n\n👉 [Join the waitlist](" +
+          SITE_URL +
+          "#nft)";
+  },
+};
+
 bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
   const sec = ctx.match![1];
   const l = getLang(ctxChatId(ctx));
@@ -697,7 +978,7 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
     }
     if (fg && fg.value !== undefined) text += `${fgEmoji(fg.value)} ${s.fearGreed}: ${escNum(fg.value)}/100 \\(${fgLabel(fg.label, l)}\\)\n\n`;
     if (dig?.digest) text += `📝 ${l === "zh" ? "AI 每日点评" : "AI Digest"}:\n${esc(dig.digest.slice(0, 400))}${dig.digest.length > 400 ? "\\.\\.\\." : ""}\n`;
-    text += l === "zh" ? "\n👉 [查看完整仪表盘](https://driftcrypto\\.fun#dashboard)" : "\n👉 [View full dashboard](https://driftcrypto.fun#dashboard)";
+    text += l === "zh" ? `\n👉 [查看完整仪表盘](${SITE_URL}#dashboard)` : `\n👉 [View full dashboard](${SITE_URL}#dashboard)`;
     await safeEdit(ctx, text, mainKB(l));
     return;
   }
@@ -717,7 +998,7 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
       for (const c of data.coins.slice(0, 15))
         text += `${chgEmoji(c.change24h)} ${esc(c.symbol.toUpperCase().padEnd(7))} ${fmtUSD(c.usdPrice)} \\(${fmtChg(c.change24h)}\\)\n`;
     }
-    text += l === "zh" ? "\n👉 [查看完整行情](https://driftcrypto\\.fun#market)" : "\n👉 [View full market](https://driftcrypto.fun#market)";
+    text += l === "zh" ? `\n👉 [查看完整行情](${SITE_URL}#market)` : `\n👉 [View full market](${SITE_URL}#market)`;
     await safeEdit(ctx, text, mainKB(l));
     return;
   }
@@ -754,7 +1035,7 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
       text += "\n";
     }
     if (data?.minMembership && data.minMembership !== "free") text += l === "zh" ? "🔒 需升级会员\n\n" : "🔒 Requires membership\n\n";
-    text += l === "zh" ? "👉 [查看飘叔分析](https://driftcrypto\\.fun#piao\\-shu)" : "👉 [View PiaoShu](https://driftcrypto.fun#piao-shu)";
+    text += l === "zh" ? `👉 [查看飘叔分析](${SITE_URL}#piao\\-shu)` : `👉 [View PiaoShu](${SITE_URL}#piao-shu)`;
     await safeEdit(ctx, text, mainKB(l));
     return;
   }
@@ -765,8 +1046,8 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
     let text = l === "zh" ? "💚 *市场情绪*\n\n" : "💚 *Market Sentiment*\n\n";
     if (fg && fg.value !== undefined) text += `${fgEmoji(fg.value)} ${s.fearGreed}: ${escNum(fg.value)}/100 \\(${fgLabel(fg.label, l)}\\)\n\n`;
     text += l === "zh"
-      ? "📱 社交情绪：Twitter/Reddit 实时讨论\n📰 新闻情绪：AI 多空分析\n\n👉 [查看情绪分析](https://driftcrypto\\.fun#sentiment)"
-      : "📱 Social: Twitter/Reddit discussion\n📰 News: AI sentiment analysis\n\n👉 [View sentiment](https://driftcrypto.fun#sentiment)";
+      ? `📱 社交情绪：Twitter/Reddit 实时讨论\n📰 新闻情绪：AI 多空分析\n\n👉 [查看情绪分析](${SITE_URL}#sentiment)`
+      : `📱 Social: Twitter/Reddit discussion\n📰 News: AI sentiment analysis\n\n👉 [View sentiment](${SITE_URL}#sentiment)`;
     await safeEdit(ctx, text, moreKB(l));
     return;
   }
@@ -778,7 +1059,7 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
     if (p?.global) text += l === "zh"
       ? `🌐 加密总市值：${fmtLarge(p.global.totalMarketCap)} \\(${fmtChg(p.global.marketCapChange24h)}\\)\n\n`
       : `🌐 Crypto MCap: ${fmtLarge(p.global.totalMarketCap)} \\(${fmtChg(p.global.marketCapChange24h)}\\)\n\n`;
-    text += l === "zh" ? "👉 [查看宏观数据](https://driftcrypto\\.fun#macro\\-economics)" : "👉 [View macro](https://driftcrypto.fun#macro-economics)";
+    text += l === "zh" ? `👉 [查看宏观数据](${SITE_URL}#macro\\-economics)` : `👉 [View macro](${SITE_URL}#macro-economics)`;
     await safeEdit(ctx, text, moreKB(l));
     return;
   }
@@ -802,7 +1083,7 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
         text += "\n";
       }
     }
-    text += l === "zh" ? "👉 [查看热门](https://driftcrypto\\.fun#trending)" : "👉 [View trending](https://driftcrypto.fun#trending)";
+    text += l === "zh" ? `👉 [查看热门](${SITE_URL}#trending)` : `👉 [View trending](${SITE_URL}#trending)`;
     await safeEdit(ctx, text, moreKB(l));
     return;
   }
@@ -810,33 +1091,33 @@ bot.callbackQuery(/^nav:(.+)$/, async (ctx) => {
   // ── Membership ─────────────────────────────────────────────
   if (sec === "membership") {
     await safeEdit(ctx, l === "zh"
-      ? `👑 *会员方案*\n\n🔓 *免费* — 基础行情数据, 每天5次AI对话\n⭐ *进阶* — $19/月 — 飘叔研报, 每天100次AI对话\n💎 *专业* — $49/月 — 无限AI对话, 实时提醒\n\n💳 支持 USD 或 USDC 支付\n\n👉 [升级会员](https://driftcrypto\\.fun#membership)`
-      : `👑 *Membership Plans*\n\n🔓 *Free* — Basic data, 5 AI chats/day\n⭐ *Plus* — $19/mo — PiaoShu reports, 100 AI chats/day\n💎 *Pro* — $49/mo — Unlimited AI, Real\\-time alerts\n\n💳 USD or USDC\n\n👉 [Upgrade](https://driftcrypto.fun#membership)`,
+      ? `👑 *会员方案*\n\n🔓 *免费* — 基础行情数据, 每天5次AI对话\n⭐ *进阶* — $19/月 — 飘叔研报, 每天100次AI对话\n💎 *专业* — $49/月 — 无限AI对话, 实时提醒\n\n💳 支持 USD 或 USDC 支付\n\n👉 [升级会员](${SITE_URL}#membership)`
+      : `👑 *Membership Plans*\n\n🔓 *Free* — Basic data, 5 AI chats/day\n⭐ *Plus* — $19/mo — PiaoShu reports, 100 AI chats/day\n💎 *Pro* — $49/mo — Unlimited AI, Real\\-time alerts\n\n💳 USD or USDC\n\n👉 [Upgrade](${SITE_URL}#membership)`,
       moreKB(l));
     return;
   }
 
-  // ── Generic sections ───────────────────────────────────────
-  const descs: Record<string, string> = {
-    "portfolio": l === "zh" ? "💼 *投资组合*\n\n追踪和管理您的加密资产。登录网站同步。\n\n👉 [查看](https://driftcrypto\\.fun#portfolio)" : "💼 *Portfolio*\n\nTrack and manage your crypto holdings\\. Sign in to sync\\.\n\n👉 [View](https://driftcrypto.fun#portfolio)",
-    "screener": l === "zh" ? "🔍 *VC 持仓筛选器*\n\n追踪顶级风投基金加密持仓。\n\n👉 [查看](https://driftcrypto\\.fun#screener)" : "🔍 *VC Token Screener*\n\nTrack top VC fund crypto holdings\\.\n\n👉 [View](https://driftcrypto.fun#screener)",
-    "ai-analysis": l === "zh" ? "🧠 *AI 分析中心*\n\n多模型 AI 驱动的加密分析。\n\n👉 [查看](https://driftcrypto\\.fun#ai-analysis)" : "🧠 *AI Analysis Hub*\n\nMulti\\-model AI\\-powered crypto analysis\\.\n\n👉 [View](https://driftcrypto.fun#ai-analysis)",
-    "technical-analysis": l === "zh" ? "📈 *技术分析*\n\n高级图表模式、技术指标、支撑/阻力位。\n\n👉 [查看](https://driftcrypto\\.fun#technical-analysis)" : "📈 *Technical Analysis*\n\nChart patterns, indicators, support/resistance\\.\n\n👉 [View](https://driftcrypto.fun#technical-analysis)",
-    "predictions": l === "zh" ? "🔮 *增强预测*\n\nAI 驱动的价格预测，带置信度评分。\n\n👉 [查看](https://driftcrypto\\.fun#predictions)" : "🔮 *Enhanced Predictions*\n\nAI\\-driven price predictions with confidence scores\\.\n\n👉 [View](https://driftcrypto.fun#predictions)",
-    "market-analysis": l === "zh" ? "📊 *市场分析*\n\n综合 AI 驱动的市场分析。\n\n👉 [查看](https://driftcrypto\\.fun#market-analysis)" : "📊 *Market Analysis*\n\nAI\\-driven market analysis with trend direction\\.\n\n👉 [View](https://driftcrypto.fun#market-analysis)",
-    "correlations": l === "zh" ? "🔗 *跨资产相关性*\n\n主要资产相关性热力图。\n\n👉 [查看](https://driftcrypto\\.fun#correlations)" : "🔗 *Cross\\-Asset Correlations*\n\nCorrelation heatmap across major assets\\.\n\n👉 [View](https://driftcrypto.fun#correlations)",
-    "microstructure": l === "zh" ? "🔬 *市场微观结构*\n\n订单簿深度、买卖价差和流动性指标。\n\n👉 [查看](https://driftcrypto\\.fun#microstructure)" : "🔬 *Market Microstructure*\n\nOrder book depth, spreads, and liquidity\\.\n\n👉 [View](https://driftcrypto.fun#microstructure)",
-    "prediction-accuracy": l === "zh" ? "🎯 *预测准确率*\n\n追踪和验证 AI 预测表现。\n\n👉 [查看](https://driftcrypto\\.fun#prediction-accuracy)" : "🎯 *Prediction Accuracy*\n\nTrack and verify AI prediction performance\\.\n\n👉 [View](https://driftcrypto.fun#prediction-accuracy)",
-    "batch-analysis": l === "zh" ? "📑 *批量分析*\n\n同时分析多个币种。\n\n👉 [查看](https://driftcrypto\\.fun#batch-analysis)" : "📑 *Batch Analysis*\n\nAnalyze multiple coins simultaneously\\.\n\n👉 [View](https://driftcrypto.fun#batch-analysis)",
-    "nft": l === "zh" ? "🖼 *NFT*\n\nAI 驱动的独特数字资产。即将上线！\n\n👉 [查看](https://driftcrypto\\.fun#nft)" : "🖼 *NFT*\n\nAI\\-driven digital assets\\. Coming soon\\!\n\n👉 [View](https://driftcrypto.fun#nft)",
-  };
-
-  const desc = descs[sec];
-  if (desc) {
-    await safeEdit(ctx, desc, moreKB(l));
-  } else {
-    console.warn(`Unknown section: ${sec}`);
+  // ── Sections backed by live data ───────────────────────────
+  const renderer = SECTION_RENDERERS[sec];
+  if (renderer) {
+    const text = await renderer(l).catch((err) => {
+      console.error("Section " + sec + " failed:", err);
+      return null;
+    });
+    if (text) {
+      await safeEdit(ctx, text, moreKB(l));
+      return;
+    }
   }
+
+  console.warn("Unknown or unavailable section: " + sec);
+  await safeEdit(
+    ctx,
+    l === "zh"
+      ? "📭 该栏目暂时无法加载，请稍后再试。"
+      : "📭 This section is unavailable right now.",
+    mainKB(l),
+  );
 });
 
 // ===========================================================================
@@ -864,7 +1145,7 @@ bot.callbackQuery(/^quick:(.+)$/, async (ctx) => {
     if (!res.ok) throw new Error(`API ${res.status}`);
     const data = await res.json() as AIChatResponse;
     const answer = aiText(data)?.slice(0, 3500) ?? s.error;
-    const text = `🤖 *AI ${l === "zh" ? "回答" : "Response"}*\n\n${esc(answer)}${s.aiDisclaimer}\n\n👉 [继续聊天](https://driftcrypto\\.fun#ai\\-chat)`;
+    const text = `🤖 *AI ${l === "zh" ? "回答" : "Response"}*\n\n${esc(answer)}${s.aiDisclaimer}\n\n👉 [继续聊天](${SITE_URL}#ai\\-chat)`;
     await safeEdit(ctx, text, new InlineKeyboard()
       .text(l === "zh" ? "💡 再问" : "💡 Ask another", "nav:ai-chat").text(s.mainMenu, "nav:back"));
   } catch (err) {
