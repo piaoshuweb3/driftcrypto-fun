@@ -32,7 +32,7 @@ const API_BASE = (
 ).replace(/\/+$/, "");
 
 /** Port for the health-check HTTP server. */
-const BOT_PORT = Number(process.env.BOT_PORT ?? 3002);
+const BOT_PORT = Number(process.env.PORT ?? process.env.BOT_PORT ?? 3002);
 
 const bot = new Bot(BOT_TOKEN);
 

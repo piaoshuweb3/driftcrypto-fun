@@ -1,0 +1,5 @@
+node_modules
+.bot-langs.json
+*.log
+Dockerfile
+.dockerignore
