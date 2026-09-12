@@ -1,3 +1,4 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import TwitterProvider from "next-auth/providers/twitter";
@@ -41,6 +42,19 @@ declare module "next-auth/jwt" {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Constant-time credential comparison
+// ---------------------------------------------------------------------------
+// `===` leaks information through timing and returns early on the first
+// differing byte. Hashing both sides first makes the comparison constant-time
+// and independent of length.
+// ---------------------------------------------------------------------------
+function safeEqual(a: string, b: string): boolean {
+  const ha = createHash("sha256").update(a).digest();
+  const hb = createHash("sha256").update(b).digest();
+  return timingSafeEqual(ha, hb);
+}
+
 export const authOptions: NextAuthOptions = {
   providers: [
     // ── Google OAuth ────────────────────────────────────────────────────
@@ -53,6 +67,52 @@ export const authOptions: NextAuthOptions = {
     TwitterProvider({
       clientId: process.env.TWITTER_ID ?? "",
       clientSecret: process.env.TWITTER_SECRET ?? "",
+    }),
+
+    // ── Credentials (Administrator) ─────────────────────────────────────
+    // Username + password, configured through ADMIN_USERNAME / ADMIN_PASSWORD.
+    // Nothing is hardcoded: this repository is public, so the credentials must
+    // live in the environment (locally in .env, in production in the host's
+    // environment settings).
+    CredentialsProvider({
+      id: "admin",
+      name: "Administrator",
+      credentials: {
+        username: { label: "Username", type: "text", placeholder: "admin" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const expectedUser = process.env.ADMIN_USERNAME;
+        const expectedPass = process.env.ADMIN_PASSWORD;
+
+        if (!expectedUser || !expectedPass) {
+          throw new Error(
+            "Administrator login is not configured — set ADMIN_USERNAME and ADMIN_PASSWORD",
+          );
+        }
+
+        const username = credentials?.username ?? "";
+        const password = credentials?.password ?? "";
+
+        // Evaluate both, so a wrong username is indistinguishable from a wrong
+        // password to anyone probing the endpoint.
+        const userOk = safeEqual(username, expectedUser);
+        const passOk = safeEqual(password, expectedPass);
+
+        if (!userOk || !passOk) {
+          throw new Error("Invalid username or password");
+        }
+
+        // Intentionally does not touch the database: the administrator must be
+        // able to sign in even when the report store is unreachable.
+        return {
+          id: "admin",
+          name: expectedUser,
+          email: `${expectedUser}@driftcrypto.fun`,
+          role: "admin",
+          membership: "admin",
+        };
+      },
     }),
 
     // ── Credentials (Wallet) ────────────────────────────────────────────
@@ -142,9 +202,12 @@ export const authOptions: NextAuthOptions = {
   },
 
   // ── Pages ────────────────────────────────────────────────────────────
+  // Point at our own page. Previously these pointed at the NextAuth API
+  // routes, so an expired session or a sign-in error dropped the visitor onto
+  // an unstyled default page outside the app.
   pages: {
-    signIn: "/api/auth/signin",
-    error: "/api/auth/error",
+    signIn: "/signin",
+    error: "/signin",
   },
 
   // ── Secret ───────────────────────────────────────────────────────────
@@ -238,9 +301,9 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      // ── Credentials (wallet) provider ──────────────────────────────
-      // The authorize function already handles user creation / lookup
-      // and sets the custom fields. Just return true.
+      // ── Credentials (wallet / admin) ───────────────────────────────
+      // authorize() already validated the caller and set the custom fields
+      // (or deliberately bypassed the database for the administrator).
       return true;
     },
 
@@ -255,13 +318,19 @@ export const authOptions: NextAuthOptions = {
 
       // On session update trigger, refresh from DB
       if (trigger === "update" && token.id) {
-        const dbUser = await db.user.findUnique({
-          where: { id: token.id as string },
-        });
-        if (dbUser) {
-          token.role = dbUser.role;
-          token.membership = dbUser.membership;
-          token.walletAddress = dbUser.walletAddress ?? undefined;
+        try {
+          const dbUser = await db.user.findUnique({
+            where: { id: token.id as string },
+          });
+          if (dbUser) {
+            token.role = dbUser.role;
+            token.membership = dbUser.membership;
+            token.walletAddress = dbUser.walletAddress ?? undefined;
+          }
+        } catch (err) {
+          // An unreachable database must not invalidate a live session — the
+          // token already carries the last known values.
+          console.error("[auth] session refresh failed:", err);
         }
       }
 

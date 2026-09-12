@@ -12,6 +12,7 @@ const MEMBERSHIP_LEVELS: Record<string, number> = {
   free: 0,
   plus: 1,
   pro: 2,
+  admin: 99, // administrators can read every tier
 };
 
 function canAccess(userMembership: string, requiredMembership: string): boolean {

@@ -11,7 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
-import { Wallet } from 'lucide-react';
+import { Wallet, ShieldCheck } from 'lucide-react';
 import { useI18n } from '@/lib/i18n';
 import { signIn } from 'next-auth/react';
 import { toast } from 'sonner';
@@ -71,14 +71,27 @@ function getInjectedProvider(): InjectedProvider | undefined {
   return (window as unknown as { ethereum?: InjectedProvider }).ethereum;
 }
 
+type View = 'menu' | 'wallet' | 'admin';
+
 // ---------------------------------------------------------------------------
 // SignInDialog Component
 // ---------------------------------------------------------------------------
 export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) {
-  const { t } = useI18n();
-  const [showWalletInput, setShowWalletInput] = useState(false);
+  const { t, locale } = useI18n();
+  const zh = locale === 'zh';
+
+  const [view, setView] = useState<View>('menu');
   const [walletAddress, setWalletAddress] = useState('');
+  const [adminUser, setAdminUser] = useState('');
+  const [adminPass, setAdminPass] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const reset = () => {
+    setView('menu');
+    setWalletAddress('');
+    setAdminUser('');
+    setAdminPass('');
+  };
 
   const handleGoogleSignIn = async () => {
     setLoading(true);
@@ -97,6 +110,41 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
       await signIn('twitter', { callbackUrl: '/' });
     } catch {
       toast.error('Sign in failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Administrator sign-in: username + password.
+   *
+   * The credentials are compared server-side against ADMIN_USERNAME /
+   * ADMIN_PASSWORD (src/lib/auth.ts). That check deliberately does not touch
+   * the database, so the administrator can still get in while the report store
+   * is unreachable.
+   */
+  const handleAdminSignIn = async () => {
+    if (!adminUser.trim() || !adminPass) return;
+
+    setLoading(true);
+    try {
+      const result = await signIn('admin', {
+        username: adminUser.trim(),
+        password: adminPass,
+        redirect: false,
+      });
+
+      if (!result?.ok) {
+        throw new Error(
+          zh ? '用户名或密码不正确' : 'Invalid username or password',
+        );
+      }
+
+      toast.success(zh ? '已以管理员身份登录' : 'Signed in as administrator');
+      reset();
+      onOpenChange(false);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Sign in failed');
     } finally {
       setLoading(false);
     }
@@ -169,13 +217,12 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
         redirect: false,
       });
 
-      if (!result || result.error) {
+      if (!result?.ok) {
         throw new Error('Signature verification failed');
       }
 
       toast.success(t('auth.walletConnected'));
-      setShowWalletInput(false);
-      setWalletAddress('');
+      reset();
       onOpenChange(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Wallet sign in failed');
@@ -185,8 +232,7 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
   };
 
   const handleClose = () => {
-    setShowWalletInput(false);
-    setWalletAddress('');
+    reset();
     onOpenChange(false);
   };
 
@@ -207,7 +253,8 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
 
         <div className="flex flex-col gap-3 mt-2">
           <AnimatePresence mode="wait">
-            {!showWalletInput ? (
+            {/* ── Menu ─────────────────────────────────────────────── */}
+            {view === 'menu' && (
               <motion.div
                 key="auth-buttons"
                 initial={{ opacity: 0, y: 8 }}
@@ -251,14 +298,29 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
                 <Button
                   variant="outline"
                   className="w-full h-11 bg-transparent hover:bg-gold/10 text-gold border-gold/30 hover:border-gold/50 font-medium gap-3 transition-colors"
-                  onClick={() => setShowWalletInput(true)}
+                  onClick={() => setView('wallet')}
                   disabled={loading}
                 >
                   <Wallet className="size-5 shrink-0" />
                   {t('auth.connectWallet')}
                 </Button>
+
+                {/* Administrator */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-xs text-muted-foreground hover:text-foreground gap-2"
+                  onClick={() => setView('admin')}
+                  disabled={loading}
+                >
+                  <ShieldCheck className="size-3.5 shrink-0" />
+                  {zh ? '管理员登录' : 'Administrator sign-in'}
+                </Button>
               </motion.div>
-            ) : (
+            )}
+
+            {/* ── Wallet ───────────────────────────────────────────── */}
+            {view === 'wallet' && (
               <motion.div
                 key="wallet-input"
                 initial={{ opacity: 0, y: 8 }}
@@ -267,7 +329,6 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
                 transition={{ duration: 0.2 }}
                 className="flex flex-col gap-4"
               >
-                {/* Wallet icon & label */}
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-gold/5 border border-gold/20">
                   <Wallet className="size-6 text-gold shrink-0" />
                   <div>
@@ -276,7 +337,6 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
                   </div>
                 </div>
 
-                {/* Wallet address input */}
                 <Input
                   placeholder="0x..."
                   value={walletAddress}
@@ -285,18 +345,17 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
                   disabled={loading}
                 />
 
-                {/* Action buttons */}
                 <div className="flex gap-2">
                   <Button
                     variant="ghost"
                     className="flex-1 text-muted-foreground hover:text-foreground"
                     onClick={() => {
-                      setShowWalletInput(false);
+                      setView('menu');
                       setWalletAddress('');
                     }}
                     disabled={loading}
                   >
-                    {t('common.retry') === 'Retry' ? 'Back' : '返回'}
+                    {zh ? '返回' : 'Back'}
                   </Button>
                   <Button
                     className="flex-1 bg-gold hover:bg-gold/90 text-[#0a0a0f] font-semibold shadow-lg shadow-gold/20"
@@ -304,6 +363,74 @@ export default function SignInDialog({ open, onOpenChange }: SignInDialogProps) 
                     disabled={loading}
                   >
                     {loading ? t('auth.signingIn') : t('auth.verifyAndSignIn')}
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* ── Administrator ────────────────────────────────────── */}
+            {view === 'admin' && (
+              <motion.div
+                key="admin-input"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col gap-4"
+              >
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-gold/5 border border-gold/20">
+                  <ShieldCheck className="size-6 text-gold shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">
+                      {zh ? '管理员登录' : 'Administrator sign-in'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {zh ? '使用站点配置的管理员账号' : 'Use the account configured for this site'}
+                    </p>
+                  </div>
+                </div>
+
+                <Input
+                  placeholder={zh ? '用户名' : 'Username'}
+                  autoComplete="username"
+                  value={adminUser}
+                  onChange={(e) => setAdminUser(e.target.value)}
+                  className="h-11 bg-white/5 border-white/10 text-sm placeholder:text-muted-foreground focus-visible:ring-gold/30 focus-visible:border-gold/30"
+                  disabled={loading}
+                />
+
+                <Input
+                  type="password"
+                  placeholder={zh ? '密码' : 'Password'}
+                  autoComplete="current-password"
+                  value={adminPass}
+                  onChange={(e) => setAdminPass(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') void handleAdminSignIn();
+                  }}
+                  className="h-11 bg-white/5 border-white/10 text-sm placeholder:text-muted-foreground focus-visible:ring-gold/30 focus-visible:border-gold/30"
+                  disabled={loading}
+                />
+
+                <div className="flex gap-2">
+                  <Button
+                    variant="ghost"
+                    className="flex-1 text-muted-foreground hover:text-foreground"
+                    onClick={() => {
+                      setView('menu');
+                      setAdminUser('');
+                      setAdminPass('');
+                    }}
+                    disabled={loading}
+                  >
+                    {zh ? '返回' : 'Back'}
+                  </Button>
+                  <Button
+                    className="flex-1 bg-gold hover:bg-gold/90 text-[#0a0a0f] font-semibold shadow-lg shadow-gold/20"
+                    onClick={handleAdminSignIn}
+                    disabled={loading || !adminUser.trim() || !adminPass}
+                  >
+                    {loading ? t('auth.signingIn') : zh ? '登录' : 'Sign in'}
                   </Button>
                 </div>
               </motion.div>
