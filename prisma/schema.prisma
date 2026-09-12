@@ -153,3 +153,35 @@ model PiaoShuReport {
   @@index([reportDate])
   @@index([minMembership])
 }
+
+// ---------------------------------------------------------------------------
+// USDC membership payments
+// ---------------------------------------------------------------------------
+// One row per checkout intent. The amount and destination are snapshotted at
+// creation time, so a later price change cannot retroactively invalidate or
+// re-price an in-flight payment.
+// ---------------------------------------------------------------------------
+
+model Payment {
+  id           String   @id @default(cuid())
+  tier         String   // "plus" | "pro"
+  months       Int      // 1 | 3 | 12
+  amountUsdc   Float    // whole USDC, e.g. 19 = 19.00 USDC
+  chainId      Int      // 1 Ethereum | 137 Polygon | 8453 Base | 42161 Arbitrum
+  payTo        String   // receiving address, snapshotted
+
+  // Who is paying. Either a connected wallet address or a NextAuth user id —
+  // anonymous checkouts are possible, the wallet address is then the identity.
+  payerAddress String?
+  userId       String?
+
+  txHash       String?  @unique
+  status       String   @default("pending") // pending | confirmed | expired
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+  confirmedAt  DateTime?
+
+  @@index([payerAddress])
+  @@index([status])
+  @@index([createdAt])
+}
