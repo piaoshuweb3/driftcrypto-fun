@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { chatComplete, webSearch } from '@/lib/ai/provider';
 
 const CACHE_DURATION_MS = 2 * 60 * 60 * 1000; // 2 hours
 
@@ -36,40 +36,14 @@ async function fetchCryptoNews(): Promise<{
   count: number;
 }> {
   try {
-    const zai = await ZAI.create();
-    const searchResults = await zai.functions.invoke('web_search', {
-      query: 'cryptocurrency market news today',
+    // Returns [] when no search provider is configured — callers degrade to
+    // "no news today" rather than failing the whole digest.
+    const results = await webSearch('cryptocurrency market news today', {
       num: 10,
-      recency_days: 1,
+      recencyDays: 1,
     });
 
-    if (
-      searchResults &&
-      typeof searchResults === 'object' &&
-      'results' in searchResults
-    ) {
-      const results = (
-        searchResults as {
-          results: Array<{
-            title?: string;
-            url?: string;
-            snippet?: string;
-            content?: string;
-          }>;
-        }
-      ).results;
-
-      return {
-        results: results.map((r) => ({
-          title: r.title ?? '',
-          url: r.url ?? '',
-          snippet: r.snippet ?? r.content ?? '',
-        })),
-        count: results.length,
-      };
-    }
-
-    return { results: [], count: 0 };
+    return { results, count: results.length };
   } catch (error) {
     console.error('Failed to fetch crypto news:', error);
     return { results: [], count: 0 };
@@ -79,8 +53,6 @@ async function fetchCryptoNews(): Promise<{
 async function generateDigest(
   newsItems: Array<{ title: string; url: string; snippet: string }>
 ): Promise<string> {
-  const zai = await ZAI.create();
-
   const newsText = newsItems
     .slice(0, 8)
     .map((n, i) => `${i + 1}. ${n.title}\n   ${n.snippet}`)
@@ -98,15 +70,12 @@ ${newsText || '暂无今日新闻数据。'}
 
 直接输出，不要废话。`;
 
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: SYSTEM_PROMPT },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-
-  return completion.choices?.[0]?.message?.content ?? '今日市场数据暂时无法生成点评。';
+  // The persona belongs in the system role — the previous code sent it as an
+  // assistant message, which weaker models would read as their own prior turn.
+  return chatComplete([
+    { role: 'system', content: SYSTEM_PROMPT },
+    { role: 'user', content: userPrompt },
+  ]);
 }
 
 export async function GET() {

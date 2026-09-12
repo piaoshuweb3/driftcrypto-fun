@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import ZAI from 'z-ai-web-dev-sdk';
+import { chatComplete, webSearch } from '@/lib/ai/provider';
 
 // ---------------------------------------------------------------------------
 // POST /api/piao-shu/generate — Generate a new PiaoShu daily report
@@ -147,15 +147,12 @@ async function fetchMarketData(): Promise<{
 
 async function fetchFundingRadar(): Promise<FundingRound[]> {
   try {
-    const zai = await ZAI.create();
-    const searchResults = await zai.functions.invoke('web_search', {
-      query: 'cryptocurrency blockchain funding rounds 2026 recent Series A Series B',
-      num: 10,
-      recency_days: 7,
-    });
+    const results = await webSearch(
+      'cryptocurrency blockchain funding rounds 2026 recent Series A Series B',
+      { num: 10, recencyDays: 7 },
+    );
 
-    if (searchResults && typeof searchResults === 'object' && 'results' in searchResults) {
-      const results = (searchResults as { results: Array<{ title?: string; url?: string; snippet?: string }> }).results;
+    if (results.length > 0) {
       return results.slice(0, 5).map((r, i) => ({
         project: r.title?.split(' ')[0] || `Project ${i + 1}`,
         stage: 'Series A',
@@ -174,15 +171,12 @@ async function fetchFundingRadar(): Promise<FundingRound[]> {
 
 async function fetchUpcomingICOs(): Promise<UpcomingICO[]> {
   try {
-    const zai = await ZAI.create();
-    const searchResults = await zai.functions.invoke('web_search', {
-      query: 'upcoming crypto IDO ICO token sale 2026',
+    const results = await webSearch('upcoming crypto IDO ICO token sale 2026', {
       num: 10,
-      recency_days: 7,
+      recencyDays: 7,
     });
 
-    if (searchResults && typeof searchResults === 'object' && 'results' in searchResults) {
-      const results = (searchResults as { results: Array<{ title?: string; url?: string; snippet?: string }> }).results;
+    if (results.length > 0) {
       return results.slice(0, 5).map((r, i) => ({
         project: r.title?.split(' ')[0] || `Token ${i + 1}`,
         type: 'IDO',
@@ -200,15 +194,12 @@ async function fetchUpcomingICOs(): Promise<UpcomingICO[]> {
 
 async function fetchAirdropRadar(): Promise<AirdropData[]> {
   try {
-    const zai = await ZAI.create();
-    const searchResults = await zai.functions.invoke('web_search', {
-      query: 'crypto airdrop 2026 confirmed upcoming free token',
+    const results = await webSearch('crypto airdrop 2026 confirmed upcoming free token', {
       num: 10,
-      recency_days: 7,
+      recencyDays: 7,
     });
 
-    if (searchResults && typeof searchResults === 'object' && 'results' in searchResults) {
-      const results = (searchResults as { results: Array<{ title?: string; url?: string; snippet?: string }> }).results;
+    if (results.length > 0) {
       return results.slice(0, 5).map((r, i) => ({
         project: r.title?.split(' ')[0] || `Airdrop ${i + 1}`,
         score: Math.floor(Math.random() * 100),
@@ -227,15 +218,12 @@ async function fetchAirdropRadar(): Promise<AirdropData[]> {
 
 async function fetchDailyDigestNews(): Promise<string> {
   try {
-    const zai = await ZAI.create();
-    const searchResults = await zai.functions.invoke('web_search', {
-      query: 'cryptocurrency blockchain AI web3 news today',
+    const results = await webSearch('cryptocurrency blockchain AI web3 news today', {
       num: 10,
-      recency_days: 1,
+      recencyDays: 1,
     });
 
-    if (searchResults && typeof searchResults === 'object' && 'results' in searchResults) {
-      const results = (searchResults as { results: Array<{ title?: string; url?: string; snippet?: string }> }).results;
+    if (results.length > 0) {
       return results
         .slice(0, 8)
         .map((r, i) => `${i + 1}. **${r.title || 'Untitled'}**\n   ${r.snippet || ''}`)
@@ -321,8 +309,6 @@ async function generatePiaoShuCommentary(
   newsDigest: string
 ): Promise<string> {
   try {
-    const zai = await ZAI.create();
-
     const topGainersText = gainers
       .slice(0, 5)
       .map((g) => `${g.name} (${g.symbol}): ${g.change24h?.toFixed(2)}%`)
@@ -357,15 +343,12 @@ ${newsDigest || '暂无今日新闻数据。'}
 
 直接输出，不要废话。`;
 
-    const completion = await zai.chat.completions.create({
-      messages: [
-        { role: 'assistant', content: PIAOSHU_SYSTEM_PROMPT },
-        { role: 'user', content: userPrompt },
-      ],
-      thinking: { type: 'disabled' },
-    });
-
-    return completion.choices?.[0]?.message?.content ?? '今日市场分析暂时无法生成。';
+    // The persona belongs in the system role; sending it as an assistant
+    // message made models treat it as their own previous turn.
+    return chatComplete([
+      { role: 'system', content: PIAOSHU_SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ]);
   } catch (error) {
     console.error('Failed to generate PiaoShu commentary:', error);
     return '## 飘叔暂时离线\n\n**不确定的时候，不要做任何决策。** 等数据恢复再看。空仓观望不是怂，是活下来的前提。';

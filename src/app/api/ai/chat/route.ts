@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import ZAI from 'z-ai-web-dev-sdk';
+import { chatComplete, isChatConfigured, type ChatMessage } from '@/lib/ai/provider';
 
 // ---------------------------------------------------------------------------
 // System prompts
@@ -31,11 +31,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const systemPrompt =
-      SYSTEM_PROMPTS[locale === 'zh' ? 'zh' : 'en'];
+    // Fail fast with something actionable when the deployment has no AI key.
+    // The response shape stays `{ message }` so the UI's error path is unchanged.
+    if (!isChatConfigured()) {
+      return NextResponse.json({
+        message:
+          locale === 'zh'
+            ? 'AI 助手尚未配置。请管理员设置 AI_API_KEY 环境变量后重试。'
+            : 'The AI assistant is not configured yet. An administrator needs to set AI_API_KEY.',
+      });
+    }
+
+    const systemPrompt = SYSTEM_PROMPTS[locale === 'zh' ? 'zh' : 'en'];
 
     // Build messages array
-    const messages: Array<{ role: string; content: string }> = [
+    const messages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
     ];
 
@@ -49,7 +59,10 @@ export async function POST(request: NextRequest) {
           typeof msg.content === 'string' &&
           (msg.role === 'user' || msg.role === 'assistant')
         ) {
-          messages.push({ role: msg.role, content: msg.content });
+          messages.push({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content,
+          });
         }
       }
     }
@@ -57,21 +70,7 @@ export async function POST(request: NextRequest) {
     // Add current user message
     messages.push({ role: 'user', content: message.trim() });
 
-    // Call ZAI SDK
-    const zai = await ZAI.create();
-    const completion = await zai.chat.completions.create({
-      messages: messages.map((m) => ({
-        role: m.role as 'system' | 'user' | 'assistant',
-        content: m.content,
-      })),
-      thinking: { type: 'disabled' },
-    });
-
-    const aiMessage =
-      completion.choices?.[0]?.message?.content ??
-      (locale === 'zh'
-        ? '抱歉，我暂时无法生成回复。请稍后再试。'
-        : 'Sorry, I could not generate a response. Please try again.');
+    const aiMessage = await chatComplete(messages);
 
     return NextResponse.json({ message: aiMessage });
   } catch (error) {

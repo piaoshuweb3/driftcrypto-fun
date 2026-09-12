@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import ZAI from "z-ai-web-dev-sdk";
+import { isSearchConfigured, webSearch } from "@/lib/ai/provider";
 import { db } from "@/lib/db";
 
 // ---------------------------------------------------------------------------
@@ -59,7 +59,6 @@ interface SearchHit {
   source?: string;
   publishedAt?: string;
   favicon?: string;
-  [key: string]: unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -161,29 +160,22 @@ export async function GET(request: NextRequest) {
 
     const perQueryNum = Math.ceil(num / queries.length);
 
-    let zai;
-    try {
-      zai = await ZAI.create();
-    } catch {
-      console.warn("[news] ZAI SDK init failed, returning mock data");
+    // No search provider configured means there is nothing to query, so go
+    // straight to the curated fallback rather than faking a failed request.
+    if (!isSearchConfigured()) {
+      console.warn("[news] no search provider configured, returning fallback data");
       const items = fallbackNews.slice(0, num);
       return NextResponse.json({ items, total: fallbackNews.length, hasMore: fallbackNews.length > num });
     }
 
-    const searchPromises = queries.map((query) =>
-      zai.functions
-        .invoke("web_search", {
-          query,
-          num: perQueryNum,
-          recency_days: recencyDays,
-        })
-        .catch((err: unknown) => {
+    const searchResults = await Promise.all(
+      queries.map((query) =>
+        webSearch(query, { num: perQueryNum, recencyDays }).catch((err: unknown) => {
           console.error(`[news] search failed for "${query}":`, err);
           return [] as SearchHit[];
         }),
+      ),
     );
-
-    const searchResults = await Promise.all(searchPromises);
 
     // ----- 2. Normalise + deduplicate by URL -------------------------------
 

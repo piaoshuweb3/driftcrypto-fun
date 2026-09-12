@@ -3,7 +3,9 @@ import type { NextConfig } from "next";
 const projectRoot = process.cwd();
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Vercel manages its own output format. The standalone bundle is only
+  // needed for self-hosted deploys (and the matching `npm run start`).
+  output: process.env.VERCEL ? undefined : "standalone",
   // Pin file tracing / Turbopack to THIS project. Without it Next walks up,
   // finds C:\Users\Administrator\package-lock.json, treats the user home as the
   // workspace root and emits standalone output nested under Desktop/ — so
