@@ -55,7 +55,6 @@ export type SectionId =
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState<SectionId>('dashboard');
-  const { mounted } = useI18n();
 
   // Handle hash-based navigation
   useEffect(() => {
@@ -69,20 +68,6 @@ export default function Home() {
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
   }, []);
-
-  // Don't render until i18n is mounted to avoid hydration mismatch
-  if (!mounted) {
-    return (
-      <div className="min-h-screen flex flex-col bg-background grid-pattern">
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="size-8 rounded-full border-2 border-gold border-t-transparent animate-spin" />
-            <span className="text-sm text-muted-foreground">Loading...</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background grid-pattern">

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { translations, type Locale } from './translations';
 
 // ---------------------------------------------------------------------------
@@ -39,30 +39,32 @@ function resolve(obj: Record<string, unknown>, path: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// localStorage helpers
+// Locale persistence
+// ---------------------------------------------------------------------------
+// The locale used to live in localStorage only, which the server cannot read.
+// That forced the page to withhold rendering until the client had mounted —
+// so the server-rendered HTML was an empty loading spinner and search engines
+// saw nothing. A cookie is readable on both sides, so the server can render
+// the correct language on the first pass and the markup matches on hydration.
 // ---------------------------------------------------------------------------
 
+const COOKIE_KEY = 'driftcrypto-locale';
 const STORAGE_KEY = 'driftcrypto-locale';
+const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
-function readStoredLocale(): Locale {
-  if (typeof window === 'undefined') return 'en';
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored === 'zh' || stored === 'en') return stored as Locale;
-  } catch {
-    // localStorage not available
-  }
-  // Detect browser language
-  try {
-    const browserLang = navigator.language.toLowerCase();
-    if (browserLang.startsWith('zh')) return 'zh';
-  } catch {
-    // navigator not available
-  }
-  return 'en';
+export function readLocaleCookie(cookieHeader: string | undefined): Locale {
+  if (!cookieHeader) return 'en';
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${COOKIE_KEY}=([^;]+)`));
+  const value = match?.[1];
+  return value === 'zh' || value === 'en' ? value : 'en';
 }
 
-function writeStoredLocale(locale: Locale) {
+function persistLocale(locale: Locale) {
+  try {
+    document.cookie = `${COOKIE_KEY}=${locale}; path=/; max-age=${ONE_YEAR_SECONDS}; samesite=lax`;
+  } catch {
+    // cookies unavailable — the in-memory locale still applies for this session
+  }
   try {
     localStorage.setItem(STORAGE_KEY, locale);
   } catch {
@@ -71,37 +73,57 @@ function writeStoredLocale(locale: Locale) {
 }
 
 // ---------------------------------------------------------------------------
-// Provider — hydration-safe
-//
-// Strategy: Initialize locale to the stored value via a lazy initializer.
-// On the server, readStoredLocale returns 'en'. On the client, it returns
-// the actual stored locale. Since useState's initializer runs only once
-// and differs between server and client, React will reconcile during
-// hydration without a mismatch warning because we use suppressHydrationWarning
-// on the <html> element and show a loading state until mounted.
+// Provider
 // ---------------------------------------------------------------------------
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [localeState, setLocaleState] = useState<Locale>(() => readStoredLocale());
+export function I18nProvider({
+  children,
+  initialLocale = 'en',
+}: {
+  children: ReactNode;
+  /** Read from the request cookie by the server layout, so both sides agree. */
+  initialLocale?: Locale;
+}) {
+  const [localeState, setLocaleState] = useState<Locale>(initialLocale);
   const [mounted, setMounted] = useState(false);
 
-  // Mark as mounted after first render (client-side only)
-  // Using queueMicrotask to avoid the "setState in effect" lint rule
-  const hasMounted = useCallback(() => {
+  useEffect(() => {
     setMounted(true);
   }, []);
 
-  // Use a ref to track if we've set up the mount listener
-  const mountRef = useCallback((node: null) => {
-    if (node === null) return; // cleanup
-    queueMicrotask(() => {
-      setMounted(true);
-    });
-  }, []);
+  // First visit (no cookie yet): adopt the stored/browser language *after*
+  // hydration. Doing it in an effect keeps the first client render identical to
+  // the server render, so React does not report a mismatch.
+  useEffect(() => {
+    let hasCookie = false;
+    try {
+      hasCookie = document.cookie.includes(`${COOKIE_KEY}=`);
+    } catch {
+      // ignore
+    }
+    if (hasCookie) return;
+
+    let detected: Locale = initialLocale;
+    try {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored === 'zh' || stored === 'en') {
+        detected = stored;
+      } else if (navigator.language.toLowerCase().startsWith('zh')) {
+        detected = 'zh';
+      }
+    } catch {
+      // ignore
+    }
+
+    if (detected !== initialLocale) {
+      setLocaleState(detected);
+      persistLocale(detected);
+    }
+  }, [initialLocale]);
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
-    writeStoredLocale(newLocale);
+    persistLocale(newLocale);
   }, []);
 
   const t = useCallback(
@@ -125,8 +147,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   return (
     <I18nContext.Provider value={{ locale: localeState, setLocale, t, tArgs, mounted }}>
-      {/* Hidden ref to trigger mount detection */}
-      <span ref={mountRef} className="hidden" aria-hidden="true" />
       {children}
     </I18nContext.Provider>
   );
