@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { buildPiaoShuReport, type BuiltReport } from '@/lib/piaoshu/report';
 
 // ---------------------------------------------------------------------------
-// GET /api/piao-shu/daily — Fetch latest PiaoShu daily report
-// Query params:
-//   date? = "2026-06-04" (defaults to latest)
-//   membership? = "free" | "plus" | "pro" (determines content access)
+// GET /api/piao-shu/daily — latest PiaoShu daily report
+//
+//   date?       = "2026-06-04" (defaults to the newest)
+//   membership? = "free" | "plus" | "pro" | "admin"
+//
+// If the report store is unreachable the report is assembled on demand instead
+// of showing nothing, so this section stays usable before a database exists.
 // ---------------------------------------------------------------------------
 
 const MEMBERSHIP_LEVELS: Record<string, number> = {
@@ -19,13 +23,121 @@ function canAccess(userMembership: string, requiredMembership: string): boolean 
   return (MEMBERSHIP_LEVELS[userMembership] ?? 0) >= (MEMBERSHIP_LEVELS[requiredMembership] ?? 99);
 }
 
-export async function GET(req: NextRequest) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const date = searchParams.get('date');
-    const membership = searchParams.get('membership') || 'free';
+// ---------------------------------------------------------------------------
+// On-demand fallback
+// ---------------------------------------------------------------------------
+// Assembling a report costs an AI call, so the result is held in memory rather
+// than regenerated on every request.
+// ---------------------------------------------------------------------------
+const EPHEMERAL_TTL_MS = 30 * 60 * 1000;
+let ephemeral: { report: BuiltReport; at: number } | null = null;
 
-    // Fetch latest report or by specific date
+async function getEphemeralReport(): Promise<BuiltReport> {
+  if (ephemeral && Date.now() - ephemeral.at < EPHEMERAL_TTL_MS) {
+    return ephemeral.report;
+  }
+  const report = await buildPiaoShuReport();
+  ephemeral = { report, at: Date.now() };
+  return report;
+}
+
+/** The shape both a stored row and a live report are normalised into. */
+interface ReportSource {
+  reportDate: string;
+  title: string;
+  generatedAt: string | Date;
+  minMembership: string;
+  marketOverview: string;
+  gainers: string;
+  losers: string;
+  fundingRadar: string;
+  upcomingICO: string;
+  airdropRadar: string;
+  opportunityAnalysis: string;
+  dailyDigest: string;
+  piaoshuCommentary: string;
+  fullContent: string;
+}
+
+function parse<T>(json: string, fallback: T): T {
+  try {
+    return JSON.parse(json) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function shape(
+  src: ReportSource,
+  membership: string,
+  extras: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const hasAccess = canAccess(membership, src.minMembership);
+
+  const response: Record<string, unknown> = {
+    hasReport: true,
+    reportDate: src.reportDate,
+    title: src.title,
+    generatedAt: src.generatedAt,
+    minMembership: src.minMembership,
+    hasAccess,
+    ...extras,
+  };
+
+  if (hasAccess) {
+    response.marketOverview = parse(src.marketOverview, {});
+    response.gainers = parse(src.gainers, []);
+    response.losers = parse(src.losers, []);
+    response.fundingRadar = parse(src.fundingRadar, []);
+    response.upcomingICO = parse(src.upcomingICO, []);
+    response.airdropRadar = parse(src.airdropRadar, []);
+    response.opportunityAnalysis = src.opportunityAnalysis;
+    response.dailyDigest = src.dailyDigest;
+    response.piaoshuCommentary = src.piaoshuCommentary;
+    response.fullContent = src.fullContent;
+  } else {
+    // Preview only — enough to show what sits behind the paywall.
+    response.marketOverview = parse(src.marketOverview, {});
+    const gainers = parse<unknown[]>(src.gainers, []);
+    response.gainers = gainers.slice(0, 3);
+    response.totalGainers = gainers.length;
+    const losers = parse<unknown[]>(src.losers, []);
+    response.losers = losers.slice(0, 3);
+    response.totalLosers = losers.length;
+    response.opportunityAnalysisPreview = (src.opportunityAnalysis ?? '').slice(0, 200) + '...';
+    response.dailyDigestPreview = (src.dailyDigest ?? '').slice(0, 200) + '...';
+    response.piaoshuCommentaryPreview = (src.piaoshuCommentary ?? '').slice(0, 200) + '...';
+  }
+
+  return response;
+}
+
+/** Present a live report like a stored row, so both paths share `shape`. */
+function asSource(report: BuiltReport): ReportSource {
+  return {
+    reportDate: report.reportDate,
+    title: report.title,
+    generatedAt: new Date().toISOString(),
+    minMembership: report.minMembership,
+    marketOverview: JSON.stringify(report.marketOverview),
+    gainers: JSON.stringify(report.gainers),
+    losers: JSON.stringify(report.losers),
+    fundingRadar: JSON.stringify(report.fundingRadar),
+    upcomingICO: JSON.stringify(report.upcomingICO),
+    airdropRadar: JSON.stringify(report.airdropRadar),
+    opportunityAnalysis: report.opportunityAnalysis,
+    dailyDigest: report.dailyDigest,
+    piaoshuCommentary: report.piaoshuCommentary,
+    fullContent: report.fullContent,
+  };
+}
+
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const date = searchParams.get('date');
+  const membership = searchParams.get('membership') || 'free';
+
+  try {
     const report = date
       ? await db.piaoShuReport.findUnique({ where: { reportDate: date } })
       : await db.piaoShuReport.findFirst({ orderBy: { reportDate: 'desc' } });
@@ -37,94 +149,36 @@ export async function GET(req: NextRequest) {
           hasReport: false,
           message: 'No daily report available yet. Reports are generated automatically.',
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    const hasAccess = canAccess(membership, report.minMembership);
-
-    // Build response based on membership level
-    const response: Record<string, unknown> = {
-      hasReport: true,
-      reportDate: report.reportDate,
-      title: report.title,
-      generatedAt: report.generatedAt,
-      minMembership: report.minMembership,
-      hasAccess,
-    };
-
-    if (hasAccess) {
-      // Full access — return all structured data
-      try {
-        response.marketOverview = JSON.parse(report.marketOverview || '{}');
-      } catch { response.marketOverview = {}; }
-      try {
-        response.gainers = JSON.parse(report.gainers || '[]');
-      } catch { response.gainers = []; }
-      try {
-        response.losers = JSON.parse(report.losers || '[]');
-      } catch { response.losers = []; }
-      try {
-        response.fundingRadar = JSON.parse(report.fundingRadar || '[]');
-      } catch { response.fundingRadar = []; }
-      try {
-        response.upcomingICO = JSON.parse(report.upcomingICO || '[]');
-      } catch { response.upcomingICO = []; }
-      try {
-        response.airdropRadar = JSON.parse(report.airdropRadar || '[]');
-      } catch { response.airdropRadar = []; }
-      response.opportunityAnalysis = report.opportunityAnalysis;
-      response.dailyDigest = report.dailyDigest;
-      response.piaoshuCommentary = report.piaoshuCommentary;
-      response.fullContent = report.fullContent;
-    } else {
-      // Preview only — return limited data to tease content
-      try {
-        response.marketOverview = JSON.parse(report.marketOverview || '{}');
-      } catch { response.marketOverview = {}; }
-      // Only show top 3 gainers/losers as preview
-      try {
-        const allGainers = JSON.parse(report.gainers || '[]');
-        response.gainers = allGainers.slice(0, 3);
-        response.totalGainers = allGainers.length;
-      } catch {
-        response.gainers = [];
-        response.totalGainers = 0;
-      }
-      try {
-        const allLosers = JSON.parse(report.losers || '[]');
-        response.losers = allLosers.slice(0, 3);
-        response.totalLosers = allLosers.length;
-      } catch {
-        response.losers = [];
-        response.totalLosers = 0;
-      }
-      // Blur opportunity analysis (show first 200 chars)
-      response.opportunityAnalysisPreview = report.opportunityAnalysis?.slice(0, 200) + '...';
-      response.dailyDigestPreview = report.dailyDigest?.slice(0, 200) + '...';
-      response.piaoshuCommentaryPreview = report.piaoshuCommentary?.slice(0, 200) + '...';
-    }
-
-    return NextResponse.json(response);
+    return NextResponse.json(shape(report as ReportSource, membership));
   } catch (error) {
-    console.error('PiaoShu daily endpoint error:', error);
+    // A database outage — or a deployment with no DATABASE_URL yet — should not
+    // cost the visitor the report entirely.
+    console.error('PiaoShu daily: report store unavailable, generating live:', error);
 
-    // A database outage — or an unconfigured DATABASE_URL on a fresh deploy —
-    // must not surface as a hard failure. The client already renders
-    // "no report yet" from hasReport:false, which is far more useful to a
-    // visitor than a 500. The real cause stays in the server logs.
-    return NextResponse.json(
-      {
-        hasReport: false,
-        reportDate: '',
-        title: '',
-        generatedAt: '',
-        minMembership: 'plus',
-        hasAccess: false,
-        error: 'Report store unavailable',
-        message: 'The report store is temporarily unavailable. Please try again later.',
-      },
-      { status: 200 },
-    );
+    try {
+      const live = await getEphemeralReport();
+      return NextResponse.json(
+        shape(asSource(live), membership, { source: 'generated-live' }),
+      );
+    } catch (genError) {
+      console.error('PiaoShu daily: live generation failed as well:', genError);
+      return NextResponse.json(
+        {
+          hasReport: false,
+          reportDate: '',
+          title: '',
+          generatedAt: '',
+          minMembership: 'plus',
+          hasAccess: false,
+          error: 'Report store unavailable',
+          message: 'The report store is temporarily unavailable. Please try again later.',
+        },
+        { status: 200 },
+      );
+    }
   }
 }
