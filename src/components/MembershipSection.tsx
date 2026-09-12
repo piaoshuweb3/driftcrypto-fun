@@ -28,6 +28,7 @@ import { Separator } from '@/components/ui/separator';
 import { useI18n } from '@/lib/i18n';
 import { useSession } from 'next-auth/react';
 import SignInDialog from '@/components/auth/SignInDialog';
+import UsdcPaymentDialog from '@/components/auth/UsdcPaymentDialog';
 import { motion } from 'framer-motion';
 
 // ---------------------------------------------------------------------------
@@ -135,6 +136,8 @@ export default function MembershipSection() {
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [currency, setCurrency] = useState<'usd' | 'usdc'>('usd');
   const [signInOpen, setSignInOpen] = useState(false);
+  // Which plan is being paid for; null means the checkout is closed.
+  const [payFor, setPayFor] = useState<{ tier: 'plus' | 'pro'; months: number } | null>(null);
 
   const currentMembership = (session?.user as Record<string, unknown> | undefined)?.membership as string || 'free';
 
@@ -379,7 +382,20 @@ export default function MembershipSection() {
                       onClick={() => {
                         if (!session?.user) {
                           setSignInOpen(true);
+                          return;
                         }
+                        // Free needs no checkout; paid tiers open the USDC
+                        // dialog for whichever billing cycle is selected.
+                        if (tier.key === 'free') return;
+                        setPayFor({
+                          tier: tier.key,
+                          months:
+                            billingCycle === 'monthly'
+                              ? 1
+                              : billingCycle === 'quarterly'
+                                ? 3
+                                : 12,
+                        });
                       }}
                     >
                       {t(tier.ctaKey)}
@@ -535,6 +551,14 @@ export default function MembershipSection() {
 
       {/* Sign In Dialog */}
       <SignInDialog open={signInOpen} onOpenChange={setSignInOpen} />
+      <UsdcPaymentDialog
+        open={payFor !== null}
+        onOpenChange={(next) => {
+          if (!next) setPayFor(null);
+        }}
+        tier={payFor?.tier ?? 'plus'}
+        months={payFor?.months ?? 1}
+      />
     </div>
   );
 }

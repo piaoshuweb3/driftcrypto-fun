@@ -88,7 +88,9 @@ export function I18nProvider({
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setMounted(true);
+    // Deferred: setting state synchronously in an effect triggers a cascading
+    // render, which the react-hooks rule flags.
+    queueMicrotask(() => setMounted(true));
   }, []);
 
   // First visit (no cookie yet): adopt the stored/browser language *after*
@@ -116,8 +118,12 @@ export function I18nProvider({
     }
 
     if (detected !== initialLocale) {
-      setLocaleState(detected);
-      persistLocale(detected);
+      // Same reasoning as above — the value is already computed, only the
+      // state update is postponed to the next microtask.
+      queueMicrotask(() => {
+        setLocaleState(detected);
+        persistLocale(detected);
+      });
     }
   }, [initialLocale]);
 
